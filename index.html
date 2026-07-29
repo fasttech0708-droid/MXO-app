@@ -365,6 +365,8 @@
         <input type="range" id="globalFontSizeSlider" min="6" max="22" value="10" oninput="changeGlobalFontSize(this.value)">
         <span id="globalFontSizeLabel">10px</span>
       </div>
+
+      <button class="action-btn btn-reset" onclick="resetDefaultTree()" style="font-size: 11px; padding: 4px 8px;">🔄 Мод сэргээх</button>
     </div>
 
     <div class="control-row">
@@ -508,16 +510,18 @@
         _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       }
     } catch(e) {
-      console.log("Supabase setup skipped:", e);
+      console.log("Supabase setup status:", e);
     }
 
     let currentUser = null;
 
     function showToast(msg) {
       const toast = document.getElementById("toast-msg");
-      toast.innerText = msg;
-      toast.style.display = "block";
-      setTimeout(() => { toast.style.display = "none"; }, 3000);
+      if (toast) {
+        toast.innerText = msg;
+        toast.style.display = "block";
+        setTimeout(() => { toast.style.display = "none"; }, 3000);
+      }
     }
 
     async function checkUserSession() {
@@ -549,13 +553,13 @@
       const logoutBtn = document.getElementById("logout-btn");
 
       if (currentUser) {
-        statusText.innerText = `Нэвтэрсэн: ${currentUser.email}`;
-        authBtn.style.display = "none";
-        logoutBtn.style.display = "inline-block";
+        if (statusText) statusText.innerText = `Нэвтэрсэн: ${currentUser.email}`;
+        if (authBtn) authBtn.style.display = "none";
+        if (logoutBtn) logoutBtn.style.display = "inline-block";
       } else {
-        statusText.innerText = "Зочин хэрэглэгч";
-        authBtn.style.display = "inline-block";
-        logoutBtn.style.display = "none";
+        if (statusText) statusText.innerText = "Зочин хэрэглэгч";
+        if (authBtn) authBtn.style.display = "inline-block";
+        if (logoutBtn) logoutBtn.style.display = "none";
       }
     }
 
@@ -623,10 +627,10 @@
     }
 
     async function saveTreeToCloud() {
-      localStorage.setItem("local_family_tree", JSON.stringify(familyData));
+      saveLocalTree();
 
       if (!currentUser || !_supabase) {
-        showToast("Мод таны төхөөрөмжид хадгалагдлаа! Сүлжээнд хадгалахын тулд нэвтрэнэ үү.");
+        showToast("Мод таны төхөөрөмжид хадгалагдлаа!");
         return;
       }
 
@@ -672,11 +676,6 @@
     }
 
     async function loadTreeFromCloud() {
-      const localData = localStorage.getItem("local_family_tree");
-      if (localData) {
-        try { familyData = JSON.parse(localData); } catch(e){}
-      }
-
       if (!currentUser || !_supabase) return;
 
       try {
@@ -686,9 +685,10 @@
           .eq('user_id', currentUser.id)
           .single();
 
-        if (data && data.tree_data) {
+        if (data && data.tree_data && data.tree_data.id) {
           familyData = data.tree_data;
           selectedNode = null;
+          saveLocalTree();
           updateTree();
         }
       } catch(e){}
@@ -707,7 +707,7 @@
       return text.toLowerCase().split('').map(char => cyrToMongolMap[char] || char).join('');
     }
 
-    let familyData = {
+    const defaultFamilyData = {
       id: "node_1",
       name: "Өвөг дээдэс",
       year: "1940",
@@ -724,13 +724,40 @@
       ]
     };
 
-    const savedTree = localStorage.getItem("local_family_tree");
-    if (savedTree) {
-      try { familyData = JSON.parse(savedTree); } catch(e){}
+    let familyData = JSON.parse(JSON.stringify(defaultFamilyData));
+
+    function loadLocalTree() {
+      try {
+        const savedTree = localStorage.getItem("local_family_tree");
+        if (savedTree) {
+          const parsed = JSON.parse(savedTree);
+          if (parsed && typeof parsed === 'object' && parsed.id && parsed.name) {
+            familyData = parsed;
+          }
+        }
+      } catch(e) {
+        familyData = JSON.parse(JSON.stringify(defaultFamilyData));
+      }
     }
 
+    function saveLocalTree() {
+      try {
+        localStorage.setItem("local_family_tree", JSON.stringify(familyData));
+      } catch(e){}
+    }
+
+    function resetDefaultTree() {
+      familyData = JSON.parse(JSON.stringify(defaultFamilyData));
+      selectedNode = null;
+      saveLocalTree();
+      updateTree();
+      showToast("Модны өгөгдлийг анхны байдалд сэргээлээ!");
+    }
+
+    loadLocalTree();
+
     let selectedNode = null;
-    let idCounter = 10;
+    let idCounter = 100;
     let globalFontSize = 10;
     let isBold = false;
     let isItalic = false;
@@ -748,3 +775,533 @@
 
     const zoomBehavior = d3.zoom()
       .scaleExtent([0.2, 3])
+      .on("zoom", (event) => {
+        gMain.attr("transform", event.transform);
+      });
+
+    svg.call(zoomBehavior);
+
+    function resetZoom() {
+      svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
+    }
+
+    function openModal(d) {
+      selectedNode = d;
+      updateTree();
+
+      const modal = document.getElementById("nodeModal");
+      const title = document.getElementById("modalTitle");
+      const nameInp = document.getElementById("modalNameInput");
+      const yearInp = document.getElementById("modalYearInput");
+
+      const ownName = getOnlyOwnName(d.data.name);
+      title.innerText = `${ownName} ${d.data.year ? '(' + d.data.year + ')' : ''}`;
+      nameInp.value = ownName;
+      yearInp.value = d.data.year || "";
+
+      document.getElementById("modalChildNameInput").value = "";
+      document.getElementById("modalChildYearInput").value = "";
+
+      modal.classList.add("active");
+    }
+
+    function closeModal(modalId = "nodeModal") {
+      document.getElementById(modalId).classList.remove("active");
+    }
+
+    function closeModalOnOverlay(e) {
+      if (e.target.classList.contains("modal-overlay")) {
+        e.target.classList.remove("active");
+      }
+    }
+
+    function modalSaveRename() {
+      const nameVal = document.getElementById("modalNameInput").value.trim();
+      const yearVal = document.getElementById("modalYearInput").value.trim();
+
+      if (!nameVal) {
+        showToast("Нэрийг оруулна уу!");
+        return;
+      }
+
+      if (selectedNode.depth === 0) {
+        selectedNode.data.name = nameVal;
+      } else {
+        const parentOwnName = getOnlyOwnName(selectedNode.parent.data.name);
+        selectedNode.data.name = `${parentOwnName}\n${nameVal}`;
+      }
+
+      selectedNode.data.year = yearVal;
+      saveLocalTree();
+      updateTree();
+      closeModal('nodeModal');
+    }
+
+    function modalAddChild() {
+      const childName = document.getElementById("modalChildNameInput").value.trim();
+      const childYear = document.getElementById("modalChildYearInput").value.trim();
+
+      if (!childName) {
+        showToast("Хүүхдийн нэрийг оруулна уу!");
+        return;
+      }
+
+      const parentOwnName = getOnlyOwnName(selectedNode.data.name);
+      const fullName = `${parentOwnName}\n${childName}`;
+
+      if (!selectedNode.data.children) {
+        selectedNode.data.children = [];
+      }
+
+      selectedNode.data.children.push({
+        id: "node_" + (++idCounter),
+        name: fullName,
+        year: childYear,
+        color: selectedNode.data.color || null
+      });
+
+      saveLocalTree();
+      updateTree();
+      closeModal('nodeModal');
+    }
+
+    function modalDeleteNode() {
+      deleteNode();
+      closeModal('nodeModal');
+    }
+
+    function toggleBold() {
+      isBold = !isBold;
+      document.getElementById("btnBold").classList.toggle("active", isBold);
+      updateTree();
+    }
+
+    function toggleItalic() {
+      isItalic = !isItalic;
+      document.getElementById("btnItalic").classList.toggle("active", isItalic);
+      updateTree();
+    }
+
+    function toggleScriptUI() {
+      const scriptType = document.getElementById("scriptType").value;
+      const cyrTools = document.getElementById("cyrillic-tools");
+      const mnTools = document.getElementById("mongolian-tools");
+      
+      if (scriptType === "mongolian") {
+        cyrTools.style.display = "none";
+        mnTools.style.display = "flex";
+      } else {
+        cyrTools.style.display = "flex";
+        mnTools.style.display = "none";
+      }
+      updateTree();
+    }
+
+    function changeGlobalFontSize(size) {
+      globalFontSize = parseInt(size);
+      document.getElementById("globalFontSizeLabel").innerText = size + "px";
+      updateTree();
+    }
+
+    function changeNodeFontSize(size) {
+      if (!selectedNode) return;
+      selectedNode.data.fontSize = parseInt(size);
+      document.getElementById("nodeFontSizeLabel").innerText = size + "px";
+      updateTree();
+    }
+
+    function changeBranchColor(colorValue) {
+      if (!selectedNode) return;
+      selectedNode.descendants().forEach(d => {
+        d.data.color = colorValue;
+      });
+      saveLocalTree();
+      updateTree();
+    }
+
+    function generateHTMLText(d) {
+      const scriptType = document.getElementById("scriptType").value;
+      const fontFamily = document.getElementById("fontFamilySelect").value;
+      const mnFont = document.getElementById("mnFontSelect").value;
+      const textColor = document.getElementById("textColorPicker").value;
+
+      let rawName = d.data.name || "";
+      const yearStr = d.data.year ? `(${d.data.year})` : "";
+      const nodeFontSz = d.data.fontSize || globalFontSize;
+      
+      if (scriptType === "mongolian") {
+        rawName = convertToMongolianScript(rawName);
+        const lines = rawName.split('\n');
+        let colsHtml = lines.map(line => `<div class="mn-column">${line}</div>`).join('');
+        if (yearStr) {
+          colsHtml += `<div class="mn-column year-val" style="font-size: ${Math.max(6, nodeFontSz - 2)}px;">${yearStr}</div>`;
+        }
+        return `<div class="mongolian-box" style="font-family: ${mnFont}; font-size: ${nodeFontSz}px; color: ${textColor};">${colsHtml}</div>`;
+      } else {
+        const lines = rawName.split('\n');
+        let linesHtml = lines.map(line => `<div>${line}</div>`).join('');
+        if (yearStr) {
+          linesHtml += `<div class="year-val" style="font-size: ${Math.max(6, nodeFontSz - 2)}px;">${yearStr}</div>`;
+        }
+        const fontWeight = isBold ? "bold" : "normal";
+        const fontStyle = isItalic ? "italic" : "normal";
+
+        return `<div class="cyrillic-box" style="font-family: ${fontFamily}; font-size: ${nodeFontSz}px; font-weight: ${fontWeight}; font-style: ${fontStyle}; color: ${textColor};">${linesHtml}</div>`;
+      }
+    }
+
+    function updateTree() {
+      gMain.selectAll("*").remove();
+
+      let rootHierarchy = null;
+      try {
+        rootHierarchy = d3.hierarchy(familyData);
+      } catch(e) {
+        familyData = JSON.parse(JSON.stringify(defaultFamilyData));
+        rootHierarchy = d3.hierarchy(familyData);
+      }
+
+      const layoutType = document.getElementById("layoutType").value;
+
+      if (!selectedNode) {
+        selectedNode = rootHierarchy;
+      } else {
+        const found = rootHierarchy.descendants().find(d => d.data && d.data.id === selectedNode.data.id);
+        selectedNode = found ? found : rootHierarchy;
+      }
+
+      const displayName = (selectedNode.data.name || "").replace('\n', ' ');
+      const displayYear = selectedNode.data.year ? `(${selectedNode.data.year})` : "";
+      document.getElementById("selected-info").innerText = `Сонгосон: ${displayName} ${displayYear}`;
+
+      const currentNodeFontSize = selectedNode.data.fontSize || globalFontSize;
+      document.getElementById("nodeFontSizeSlider").value = currentNodeFontSize;
+      document.getElementById("nodeFontSizeLabel").innerText = currentNodeFontSize + "px";
+
+      if (layoutType === "full-circle") {
+        const radius = containerHeight / 2;
+        const g = gMain.append("g").attr("transform", `translate(${containerWidth / 2}, ${radius})`);
+
+        const partition = d3.partition()
+          .size([2 * Math.PI, rootHierarchy.height + 1]);
+
+        rootHierarchy.sum(d => d.children && d.children.length > 0 ? 0 : 1)
+                     .sort((a, b) => (b.value || 0) - (a.value || 0));
+
+        const root = partition(rootHierarchy);
+
+        const arc = d3.arc()
+          .startAngle(d => d.x0)
+          .endAngle(d => d.x1)
+          .padAngle(0.005)
+          .padRadius(radius / 2)
+          .innerRadius(d => d.y0 * (radius / (root.height + 1)))
+          .outerRadius(d => d.y1 * (radius / (root.height + 1)) - 1);
+
+        g.append("g")
+          .selectAll("path")
+          .data(root.descendants())
+          .join("path")
+          .attr("fill", d => d.data.color ? d.data.color : (d.depth === 0 ? "#f1c40f" : (d.depth % 2 === 0 ? "#ecf0f1" : "#ffffff")))
+          .attr("class", d => d.data.id === selectedNode.data.id ? "selected" : "")
+          .attr("d", arc)
+          .on("click", (event, d) => {
+            selectedNode = d;
+            const nameParts = (d.data.name || "").split('\n');
+            document.getElementById("nameInput").value = nameParts.length > 1 ? nameParts[1] : nameParts[0];
+            document.getElementById("yearInput").value = d.data.year || "";
+            if (d.data.color) document.getElementById("bgColorPicker").value = d.data.color;
+            updateTree();
+          })
+          .on("dblclick", (event, d) => {
+            event.stopPropagation();
+            openModal(d);
+          });
+
+        const boxSize = 140;
+        const scriptType = document.getElementById("scriptType").value;
+
+        g.append("g")
+          .selectAll("foreignObject")
+          .data(root.descendants())
+          .join("foreignObject")
+          .attr("width", boxSize)
+          .attr("height", boxSize)
+          .attr("transform", d => {
+            if (d.depth === 0) return `translate(-${boxSize/2}, -${boxSize/2})`;
+            const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+            const y = (d.y0 + d.y1) / 2 * (radius / (root.height + 1));
+
+            if (scriptType === "mongolian") {
+              const autoFlip = (x > 90 && x < 270) ? 180 : 0;
+              return `rotate(${x}) translate(0, -${y}) rotate(${autoFlip}) translate(-${boxSize/2}, -${boxSize/2})`;
+            } else {
+              const rotateAngle = x < 180 ? x - 90 : x + 90;
+              return `rotate(${rotateAngle}) translate(${x < 180 ? y : -y},0) translate(-${boxSize/2}, -${boxSize/2})`;
+            }
+          })
+          .append("xhtml:div")
+          .attr("class", "node-label")
+          .html(d => generateHTMLText(d));
+
+      } else if (layoutType === "vertical-tree") {
+        const cardW = 120;
+        const cardH = 65;
+        const minGap = 30;
+
+        const leafCount = rootHierarchy.leaves().length;
+        const dynamicWidth = Math.max(containerWidth, leafCount * (cardW + minGap));
+
+        const treeLayout = d3.tree().size([dynamicWidth - 140, containerHeight - 200]);
+        const root = treeLayout(rootHierarchy);
+
+        const g = gMain.append("g").attr("transform", `translate(${(containerWidth - dynamicWidth) / 2 + 70}, 80)`);
+
+        g.selectAll(".link-line")
+          .data(root.links())
+          .join("path")
+          .attr("class", "link-line")
+          .attr("d", d3.linkVertical()
+            .x(d => d.x)
+            .y(d => (containerHeight - 200) - d.y)
+          );
+
+        const node = g.selectAll(".node")
+          .data(root.descendants())
+          .join("g")
+          .attr("transform", d => `translate(${d.x},${(containerHeight - 200) - d.y})`);
+
+        node.append("rect")
+          .attr("x", -cardW / 2)
+          .attr("y", -cardH / 2)
+          .attr("width", cardW)
+          .attr("height", cardH)
+          .attr("rx", 8)
+          .attr("ry", 8)
+          .attr("fill", d => d.data.color ? d.data.color : (d.depth === 0 ? "#f1c40f" : "#ffffff"))
+          .attr("class", d => d.data.id === selectedNode.data.id ? "selected" : "")
+          .on("click", (event, d) => {
+            selectedNode = d;
+            const nameParts = (d.data.name || "").split('\n');
+            document.getElementById("nameInput").value = nameParts.length > 1 ? nameParts[1] : nameParts[0];
+            document.getElementById("yearInput").value = d.data.year || "";
+            if (d.data.color) document.getElementById("bgColorPicker").value = d.data.color;
+            updateTree();
+          })
+          .on("dblclick", (event, d) => {
+            event.stopPropagation();
+            openModal(d);
+          });
+
+        node.append("foreignObject")
+          .attr("x", -cardW / 2)
+          .attr("y", -cardH / 2)
+          .attr("width", cardW)
+          .attr("height", cardH)
+          .append("xhtml:div")
+          .attr("class", "node-label")
+          .html(d => generateHTMLText(d));
+
+      } else if (layoutType === "horizontal-tree") {
+        const treeLayout = d3.tree().size([containerHeight - 120, containerWidth - 250]);
+        const root = treeLayout(rootHierarchy);
+
+        const g = gMain.append("g").attr("transform", "translate(100, 60)");
+
+        g.selectAll(".link-line")
+          .data(root.links())
+          .join("path")
+          .attr("class", "link-line")
+          .attr("d", d3.linkHorizontal()
+            .x(d => d.y)
+            .y(d => d.x)
+          );
+
+        const cardW = 120;
+        const cardH = 60;
+
+        const node = g.selectAll(".node")
+          .data(root.descendants())
+          .join("g")
+          .attr("transform", d => `translate(${d.y},${d.x})`);
+
+        node.append("rect")
+          .attr("x", -cardW / 2)
+          .attr("y", -cardH / 2)
+          .attr("width", cardW)
+          .attr("height", cardH)
+          .attr("rx", 8)
+          .attr("ry", 8)
+          .attr("fill", d => d.data.color ? d.data.color : (d.depth === 0 ? "#f1c40f" : "#ffffff"))
+          .attr("class", d => d.data.id === selectedNode.data.id ? "selected" : "")
+          .on("click", (event, d) => {
+            selectedNode = d;
+            const nameParts = (d.data.name || "").split('\n');
+            document.getElementById("nameInput").value = nameParts.length > 1 ? nameParts[1] : nameParts[0];
+            document.getElementById("yearInput").value = d.data.year || "";
+            if (d.data.color) document.getElementById("bgColorPicker").value = d.data.color;
+            updateTree();
+          })
+          .on("dblclick", (event, d) => {
+            event.stopPropagation();
+            openModal(d);
+          });
+
+        node.append("foreignObject")
+          .attr("x", -cardW / 2)
+          .attr("y", -cardH / 2)
+          .attr("width", cardW)
+          .attr("height", cardH)
+          .append("xhtml:div")
+          .attr("class", "node-label")
+          .html(d => generateHTMLText(d));
+      }
+    }
+
+    function getOnlyOwnName(fullName) {
+      if (!fullName) return "";
+      const parts = fullName.split('\n');
+      return parts.length > 1 ? parts[1] : parts[0];
+    }
+
+    function addChild() {
+      const nameInput = document.getElementById("nameInput");
+      const yearInput = document.getElementById("yearInput");
+
+      const childName = nameInput.value.trim();
+      const year = yearInput.value.trim();
+
+      if (!childName) {
+        showToast("Хүүхдийн нэрийг оруулна уу!");
+        return;
+      }
+
+      const parentOwnName = getOnlyOwnName(selectedNode.data.name);
+      const fullName = `${parentOwnName}\n${childName}`;
+
+      if (!selectedNode.data.children) {
+        selectedNode.data.children = [];
+      }
+
+      selectedNode.data.children.push({
+        id: "node_" + (++idCounter),
+        name: fullName,
+        year: year,
+        color: selectedNode.data.color || null
+      });
+
+      saveLocalTree();
+      nameInput.value = "";
+      yearInput.value = "";
+      updateTree();
+    }
+
+    function renameNode() {
+      const nameInput = document.getElementById("nameInput");
+      const yearInput = document.getElementById("yearInput");
+
+      const newName = nameInput.value.trim();
+      const newYear = yearInput.value.trim();
+
+      if (!newName) {
+        showToast("Нэрийг оруулна уу!");
+        return;
+      }
+
+      if (selectedNode.depth === 0) {
+        selectedNode.data.name = newName;
+      } else {
+        const parentOwnName = getOnlyOwnName(selectedNode.parent.data.name);
+        selectedNode.data.name = `${parentOwnName}\n${newName}`;
+      }
+
+      selectedNode.data.year = newYear;
+
+      saveLocalTree();
+      nameInput.value = "";
+      yearInput.value = "";
+      updateTree();
+    }
+
+    function deleteNode() {
+      if (selectedNode.depth === 0) {
+        showToast("Төв эх өвөг дээдсийг устгах боломжгүй!");
+        return;
+      }
+
+      const parent = selectedNode.parent;
+      parent.data.children = parent.data.children.filter(child => child.id !== selectedNode.data.id);
+      selectedNode = parent;
+      saveLocalTree();
+      updateTree();
+    }
+
+    async function exportPDF() {
+      const btn = document.getElementById("btnExport");
+      btn.innerText = "Боловсруулж байна...";
+      btn.disabled = true;
+
+      resetZoom();
+
+      const node = document.getElementById("chart-container");
+      const zoomBtn = document.getElementById("zoomControls");
+      if (zoomBtn) zoomBtn.style.display = "none";
+
+      const selectedPath = document.querySelector(".selected");
+      if (selectedPath) selectedPath.classList.remove("selected");
+      node.classList.add("no-shadow");
+
+      try {
+        const scaleFactor = 3;
+        const widthPx = node.offsetWidth;
+        const heightPx = node.offsetHeight;
+
+        const dataUrl = await domtoimage.toPng(node, {
+          quality: 1.0,
+          bgcolor: '#ffffff',
+          width: widthPx * scaleFactor,
+          height: heightPx * scaleFactor,
+          style: {
+            transform: `scale(${scaleFactor})`,
+            transformOrigin: 'top left',
+            width: `${widthPx}px`,
+            height: `${heightPx}px`
+          }
+        });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('l', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+
+        const imgWidth = pdfWidth - 20;
+        const imgHeight = (heightPx * imgWidth) / widthPx;
+
+        pdf.addImage(dataUrl, 'PNG', 10, (pdfHeight - imgHeight) / 2, imgWidth, imgHeight);
+        pdf.save("Ургийн_мод.pdf");
+
+      } catch (err) {
+        showToast("PDF татахад алдаа гарлаа.");
+      } finally {
+        if (zoomBtn) zoomBtn.style.display = "flex";
+        node.classList.remove("no-shadow");
+        if (selectedPath) selectedPath.classList.add("selected");
+        btn.innerText = "📄 PDF Татах";
+        btn.disabled = false;
+      }
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeModal('nodeModal');
+        closeModal('authModal');
+      }
+    });
+
+    window.onload = function() {
+      checkUserSession();
+      updateTree();
+    };
+  </script>
+</body>
+</html>
