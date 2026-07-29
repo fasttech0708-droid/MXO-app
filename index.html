@@ -40,7 +40,7 @@
     .btn-pdf { background-color: #a855f7; }
     .btn:hover { opacity: 0.9; }
 
-    #tree-container { width: 100%; height: 550px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; overflow: hidden; margin-top: 15px; position: relative; }
+    #tree-container { width: 100%; height: 600px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; overflow: hidden; margin-top: 15px; position: relative; }
     
     .node rect { fill: #ffffff; stroke: #f97316; stroke-width: 2px; rx: 8px; ry: 8px; cursor: pointer; }
     .node text { font-size: 14px; text-anchor: middle; dominant-baseline: middle; fill: #1e293b; }
@@ -72,6 +72,7 @@
       <select id="layout-select" onchange="updateTree()">
         <option value="bottom-up">Босоо мод (Доороос дээш)</option>
         <option value="top-down">Босоо мод (Дээрээс доош)</option>
+        <option value="radial">Тойрог загвар (Radial)</option>
       </select>
     </div>
     <div class="controls-group">
@@ -113,25 +114,37 @@
 </div>
 
 <script>
-  // ТАНЫ SUPABASE МЭДЭЭЛЭЛ
+  // Supabase холболтын мэдээлэл
   const SUPABASE_URL = "https://mxo-app.supabase.co"; 
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14by1hcHAiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNzQ1Nzk5NiwiZXhwIjoyMDUzMDMzOTk2fQ.eyJ1c2VyIjpudWxsfQ"; // Түлхүүр оруулсан
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14by1hcHAiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNzQ1Nzk5NiwiZXhwIjoyMDUzMDMzOTk2fQ.eyJ1c2VyIjpudWxsfQ";
 
   let supabaseClient = null;
   let currentUser = null;
 
   let treeData = {
-    name: "Би",
-    year: "1990",
+    name: "Өвөг дээдэс",
+    year: "1940",
     children: [
-      { name: "Аав", year: "1965" }
+      { 
+        name: "Аав", 
+        year: "1965",
+        children: [
+          { name: "Би", year: "1990" },
+          { name: "Дүү", year: "1995" }
+        ]
+      },
+      { name: "Ах", year: "1968" }
     ]
   };
 
   window.addEventListener('DOMContentLoaded', async () => {
-    if (window.supabase) {
-      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      await checkUser();
+    try {
+      if (window.supabase) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        await checkUser();
+      }
+    } catch(e) {
+      console.log("Supabase init error:", e);
     }
     renderTree(treeData);
   });
@@ -151,21 +164,28 @@
   }
 
   async function handleAuth() {
-    if (!supabaseClient) return;
+    if (!supabaseClient) {
+      alert("Supabase холболтод алдаа гарлаа. Түлхүүрээ шалгана уу!");
+      return;
+    }
 
     if (currentUser) {
       await supabaseClient.auth.signOut();
       window.location.reload();
     } else {
-      const email = prompt("Нэвтрэх и-мэйл хаягаа оруулна уу:");
+      const email = prompt("Нэвтрэх/Бүртгүүлэх и-мэйл хаягаа оруулна уу:");
       if (email && email.trim() !== "") {
-        const { error } = await supabaseClient.auth.signInWithOtp({ 
-          email: email.trim(),
-          options: { emailRedirectTo: window.location.href }
-        });
-        
-        if (error) alert("Алдаа гарлаа: " + error.message);
-        else alert("Таны " + email + " и-мэйл рүү нэвтрэх холбоос явууллаа. И-мэйлээ шалгаарай!");
+        try {
+          const { error } = await supabaseClient.auth.signInWithOtp({ 
+            email: email.trim(),
+            options: { emailRedirectTo: window.location.href }
+          });
+          
+          if (error) alert("Алдаа гарлаа: " + error.message);
+          else alert("Таны " + email + " и-мэйл рүү нэвтрэх холбоос явууллаа. И-мэйлээ шалгаарай!");
+        } catch (err) {
+          alert("Холболтын алдаа: " + err.message);
+        }
       }
     }
   }
@@ -174,45 +194,91 @@
     const container = document.getElementById("tree-container");
     container.innerHTML = "";
     const width = container.clientWidth || 800;
-    const height = 500;
+    const height = 600;
+
+    const layoutType = document.getElementById("layout-select").value;
+    const fontFamily = document.getElementById("font-family") ? document.getElementById("font-family").value : 'Roboto';
 
     const svg = d3.select("#tree-container").append("svg")
       .attr("width", width)
-      .attr("height", height)
-      .append("g")
-      .attr("transform", "translate(0, 50)");
+      .attr("height", height);
 
-    const hierarchyData = d3.hierarchy(data);
-    const treeLayout = d3.tree().size([width - 100, height - 120]);
-    treeLayout(hierarchyData);
+    const root = d3.hierarchy(data);
 
-    svg.selectAll('.link')
-      .data(hierarchyData.links())
-      .enter()
-      .append('path')
-      .attr('class', 'link')
-      .attr('d', d3.linkVertical()
-        .x(d => d.x + 50)
-        .y(d => d.y));
+    if (layoutType === 'radial') {
+      // ТОЙРОГ ЗАГВАР (RADIAL LAYOUT)
+      const radius = Math.min(width, height) / 2 - 80;
+      const treeLayout = d3.tree().size([2 * Math.PI, radius]);
+      treeLayout(root);
 
-    const nodes = svg.selectAll('.node')
-      .data(hierarchyData.descendants())
-      .enter()
-      .append('g')
-      .attr('class', 'node')
-      .attr('transform', d => `translate(${d.x + 50},${d.y})`);
+      const g = svg.append("g")
+        .attr("transform", `translate(${width / 2},${height / 2})`);
 
-    nodes.append('rect')
-      .attr('width', 130)
-      .attr('height', 45)
-      .attr('x', -65)
-      .attr('y', -22);
+      g.selectAll('.link')
+        .data(root.links())
+        .enter()
+        .append('path')
+        .attr('class', 'link')
+        .attr('d', d3.linkRadial()
+          .angle(d => d.x)
+          .radius(d => d.y));
 
-    const font = document.getElementById("font-family") ? document.getElementById("font-family").value : 'Roboto';
+      const node = g.selectAll('.node')
+        .data(root.descendants())
+        .enter()
+        .append('g')
+        .attr('class', 'node')
+        .attr('transform', d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`);
 
-    nodes.append('text')
-      .text(d => `${d.data.name} (${d.data.year || ''})`)
-      .style("font-family", font);
+      node.append('rect')
+        .attr('width', 110)
+        .attr('height', 40)
+        .attr('x', -55)
+        .attr('y', -20);
+
+      node.append('text')
+        .attr('transform', d => d.x < Math.PI ? '' : 'rotate(180)')
+        .text(d => `${d.data.name} (${d.data.year || ''})`)
+        .style("font-family", fontFamily);
+
+    } else {
+      // БОСОО ЗАГВАРУУД (Top-Down & Bottom-Up)
+      const treeLayout = d3.tree().size([width - 120, height - 120]);
+      treeLayout(root);
+
+      const g = svg.append("g")
+        .attr("transform", "translate(60, 60)");
+
+      if (layoutType === 'bottom-up') {
+        root.each(d => d.y = (height - 120) - d.y);
+      }
+
+      g.selectAll('.link')
+        .data(root.links())
+        .enter()
+        .append('path')
+        .attr('class', 'link')
+        .attr('d', d3.linkVertical()
+          .x(d => d.x)
+          .y(d => d.y));
+
+      const node = g.selectAll('.node')
+        .data(root.descendants())
+        .enter()
+        .append('g')
+        .attr('class', 'node')
+        .attr('transform', d => `translate(${d.x},${d.y})`);
+
+      node.append('rect')
+        .attr('width', 130)
+        .attr('height', 45)
+        .attr('x', -65)
+        .attr('y', -22);
+
+      node.append('text')
+        .text(d => `${d.data.name} (${d.data.year || ''})`)
+        .style("font-family", fontFamily);
+    }
   }
 
   function updateTree() {
