@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8">
+  <title>МХО — Лиценз Удирдлага</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; padding: 20px; }
+    .card { background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #334155; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid #334155; }
+    th { color: #94a3b8; }
+    button { background: #f59e0b; color: #000; font-weight: bold; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #d97706; }
+    input[type="date"] { background: #0f172a; color: #fff; border: 1px solid #334155; padding: 6px; border-radius: 4px; }
+    .badge-active { background: #10b981; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+    .badge-expired { background: #ef4444; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+  <h2>🎬 МХО — Хэрэглэгчийн Эрх Удирдлага</h2>
+
+  <div class="card">
+    <h3>📋 Бүртгэлтэй хэрэглэгчид</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>И-Мэйл</th>
+          <th>Бүртгүүлсэн</th>
+          <th>Дуусах огноо</th>
+          <th>Төлөв</th>
+          <th>Эрх Сунгах</th>
+        </tr>
+      </thead>
+      <tbody id="user-list">
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://bmwmdevitmefslizmsdo.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_sHj0rm2VJ_I7eOsVCrWBDg_O6kbW24_";
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadUsers() {
+      const { data, error } = await _supabase.from('user_subscriptions').select('*');
+      const tbody = document.getElementById('user-list');
+      tbody.innerHTML = '';
+
+      if (error) { alert('Алдаа гарлаа: ' + error.message); return; }
+
+      const now = new Date();
+
+      data.forEach(sub => {
+        const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
+        const isActive = expiresAt && expiresAt > now;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><b>${sub.email}</b></td>
+          <td>${new Date(sub.created_at).toLocaleDateString()}</td>
+          <td>${expiresAt ? expiresAt.toLocaleDateString() : 'Эрхгүй'}</td>
+          <td>
+            <span class="${isActive ? 'badge-active' : 'badge-expired'}">
+              ${isActive ? 'Идэвхтэй' : 'Идэвхгүй / Дууссан'}
+            </span>
+          </td>
+          <td>
+            <input type="date" id="date-${sub.id}">
+            <button onclick="extendAccess('${sub.id}')">Сунгах</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function extendAccess(id) {
+      const dateVal = document.getElementById(`date-${id}`).value;
+      if (!dateVal) { alert('Огноо сонгоно уу!'); return; }
+
+      const expireDate = new Date(dateVal);
+      expireDate.setHours(23, 59, 59);
+
+      const { error } = await _supabase
+        .from('user_subscriptions')
+        .update({ expires_at: expireDate.toISOString() })
+        .eq('id', id);
+
+      if (error) {
+        alert('Алдаа гарлаа: ' + error.message);
+      } else {
+        alert('Эрх амжилттай сунгагдлаа!');
+        loadUsers();
+      }
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

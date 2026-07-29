@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ургийн Мод Хөтлөх Програм</title>
+    <!-- D3.js Tree visualization -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Export libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.1.6/dom-to-image-more.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        header { background: var(--card-bg); border-bottom: 1px solid var(--border); padding: 0.8rem 1.5rem; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+        .logo { font-size: 1.25rem; font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
+
+        .auth-controls { display: flex; gap: 0.5rem; align-items: center; }
+        .btn { padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
+        .btn-primary { background: var(--primary); color: white; border: none; }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
+        #tree-container { flex: 1; height: 100%; background: #ffffff; cursor: grab; }
+        #tree-container:active { cursor: grabbing; }
+
+        .sidebar { width: 320px; background: var(--card-bg); border-left: 1px solid var(--border); padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; }
+        .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .form-group label { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; }
+        .form-group input, .form-group select { padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; }
+
+        .node circle { fill: #fff; stroke: var(--primary); stroke-width: 3px; cursor: pointer; }
+        .node text { font-size: 12px; font-family: sans-serif; }
+        .link { fill: none; stroke: #cbd5e1; stroke-width: 2px; }
+
+        .traditional-script { writing-mode: vertical-lr; text-orientation: sideways; font-family: "Mongolian Baiti", "Mongolian Universal", sans-serif; font-size: 14px !important; }
+
+        .floating-toolbar { position: absolute; top: 1rem; left: 1rem; background: white; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem; display: flex; gap: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 5; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Ургийн Мод Хөтлөх Програм
+        </div>
+        <div class="auth-controls">
+            <span id="user-status" style="font-size: 0.85rem; color: #64748b;">Оффлайн горим</span>
+            <button class="btn" id="auth-btn" onclick="toggleAuth()">Нэвтрэх / Бүртгүүлэх</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="floating-toolbar">
+            <select id="layout-select" onchange="changeLayout(this.value)" class="btn">
+                <option value="vertical">Босоо загвар</option>
+                <option value="horizontal">Хэвтээ загвар</option>
+                <option value="circular">Тойрог загвар</option>
+            </select>
+            <button class="btn" onclick="exportImage('png')">PNG Татах</button>
+            <button class="btn" onclick="exportPDF()">PDF Татах</button>
+            <button class="btn btn-primary" onclick="saveToCloud()">Үүлэн дээр хадгалах</button>
+        </div>
+
+        <div id="tree-container"></div>
+
+        <div class="sidebar">
+            <h3 id="panel-title">Гишүүний мэдээлэл</h3>
+            <div class="form-group">
+                <label>Нэр (Кирилл)</label>
+                <input type="text" id="node-name" placeholder="Жишээ: Болд">
+            </div>
+            <div class="form-group">
+                <label>Нэр (Үндэсний бичиг)</label>
+                <input type="text" id="node-trad-name" placeholder="ᠪᠣᠯᠣᠳ">
+            </div>
+            <div class="form-group">
+                <label>Ургийн овгийн нэр</label>
+                <input type="text" id="node-clan" placeholder="Жишээ: Боржигон">
+            </div>
+            <div class="form-group">
+                <label>Төрсөн он</label>
+                <input type="number" id="node-birth" placeholder="1990">
+            </div>
+            <div class="form-group">
+                <label>Хүйс</label>
+                <select id="node-gender">
+                    <option value="M">Эрэгтэй</option>
+                    <option value="F">Эмэгтэй</option>
+                </select>
+            </div>
+            <hr style="border: 0.5px solid var(--border);">
+            <button class="btn btn-primary" onclick="addRelative('child')">+ Хүү/Охин нэмэх</button>
+            <button class="btn" onclick="addRelative('parent')">+ Эцэг/Эх нэмэх</button>
+            <button class="btn" style="color: #ef4444; border-color: #fca5a5;" onclick="deleteSelectedNode()">Устгах</button>
+        </div>
+    </div>
+
+    <script>
+        // --- SUPABASE CONFIGURATION ---
+        const SUPABASE_URL = "https://bmwmdevitmefslizmsdo.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_sHj0rm2VJ_I7eOsVCrWBDg_O6kbW24_";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- APP STATE ---
+        let treeData = {
+            id: "root",
+            name: "Аав",
+            tradName: "ᠠᠠᠪᠠ",
+            clan: "Боржигон",
+            birth: "1960",
+            gender: "M",
+            children: [
+                { id: "c1", name: "Хүү", tradName: "ᠬᠦᠦ", clan: "Боржигон", birth: "1988", gender: "M" }
+            ]
+        };
+
+        let selectedNode = treeData;
+        let currentLayout = "vertical";
+        let currentUser = null;
+
+        // --- AUTH & PERMISSION LOGIC ---
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            if (session?.user) {
+                currentUser = session.user;
+                document.getElementById("user-status").innerText = currentUser.email;
+                document.getElementById("auth-btn").innerText = "Гарах";
+            } else {
+                currentUser = null;
+                document.getElementById("user-status").innerText = "Оффлайн горим";
+                document.getElementById("auth-btn").innerText = "Нэвтрэх / Бүртгүүлэх";
+            }
+        });
+
+        // ЭРХ ШАЛГАХ ФУНКЦ (24 цаг & Админ зөвшөөрөл)
+        async function checkUserPermission(actionType) {
+            if (!currentUser) {
+                alert("Та эхлээд системд нэвтэрнэ үү!");
+                return false;
+            }
+
+            const { data: sub } = await supabaseClient
+                .from('user_subscriptions')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .single();
+
+            const now = new Date();
+            const hasActiveSubscription = sub && sub.expires_at && new Date(sub.expires_at) > now;
+
+            // 1. Админ эрх нээсэн бол бүх үйлдлийг зөвшөөрнө
+            if (hasActiveSubscription) {
+                return true;
+            }
+
+            // 2. Хэрэв админ эрх өгөөгүй бол 24 цагийн туршилтын хугацааг шалгана
+            const createdAt = new Date(currentUser.created_at);
+            const hoursPassed = (now - createdAt) / (1000 * 60 * 60);
+
+            // НЭР / ҮСЭГ ЗАСАХ ҮЙЛДЭЛ (Зөвхөн анхны 24 цагт зөвшөөрнө)
+            if (actionType === 'EDIT') {
+                if (hoursPassed <= 24) {
+                    return true;
+                } else {
+                    alert("Таны 24 цагийн туршилтын хугацаа дууссан байна. Үргэлжлүүлэн засахын тулд админтай холбогдон эрхээ нээнэ үү!");
+                    return false;
+                }
+            }
+
+            // CLOUD / PDF / PNG ҮЙЛДЭЛ (Анхнаасаа админ эрх шаардана)
+            if (actionType === 'SAVE' || actionType === 'PDF' || actionType === 'PNG') {
+                alert("Үүлэн дээр хадгалах болон PDF/PNG татахын тулд админтай холбогдон эрхээ нээлгэнэ үү!");
+                return false;
+            }
+
+            return false;
+        }
+
+        // --- D3 RENDERING ENGINE ---
+        const margin = {top: 50, right: 50, bottom: 50, left: 50};
+        let width = window.innerWidth - 320;
+        let height = window.innerHeight - 60;
+
+        const svg = d3.select("#tree-container").append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .call(d3.zoom().on("zoom", (event) => g.attr("transform", event.transform)))
+            .append("g");
+
+        const g = svg.append("g").attr("transform", `translate(${width/2}, 80)`);
+
+        function updateTree() {
+            g.selectAll("*").remove();
+
+            const root = d3.hierarchy(treeData);
+            let treeLayout;
+
+            if (currentLayout === "horizontal") {
+                treeLayout = d3.tree().size([height - 100, width - 200]);
+            } else {
+                treeLayout = d3.tree().size([width - 200, height - 200]);
+            }
+
+            treeLayout(root);
+
+            // Render Links
+            g.selectAll(".link")
+                .data(root.links())
+                .enter().append("path")
+                .attr("class", "link")
+                .attr("d", d3.linkVertical()
+                    .x(d => currentLayout === "horizontal" ? d.y : d.x)
+                    .y(d => currentLayout === "horizontal" ? d.x : d.y)
+                );
+
+            // Render Nodes
+            const node = g.selectAll(".node")
+                .data(root.descendants())
+                .enter().append("g")
+                .attr("class", "node")
+                .attr("transform", d => `translate(${currentLayout === "horizontal" ? d.y : d.x}, ${currentLayout === "horizontal" ? d.x : d.y})`)
+                .on("click", (event, d) => selectNode(d.data));
+
+            node.append("circle")
+                .attr("r", 20)
+                .style("stroke", d => d.data.gender === 'F' ? '#ec4899' : '#2563eb');
+
+            node.append("text")
+                .attr("dy", 35)
+                .attr("text-anchor", "middle")
+                .text(d => d.data.name);
+
+            if (selectedNode) {
+                document.getElementById("node-name").value = selectedNode.name || '';
+                document.getElementById("node-trad-name").value = selectedNode.tradName || '';
+                document.getElementById("node-clan").value = selectedNode.clan || '';
+                document.getElementById("node-birth").value = selectedNode.birth || '';
+                document.getElementById("node-gender").value = selectedNode.gender || 'M';
+            }
+        }
+
+        function selectNode(nodeData) {
+            selectedNode = nodeData;
+            updateTree();
+        }
+
+        function changeLayout(layout) {
+            currentLayout = layout;
+            updateTree();
+        }
+
+        async function addRelative(type) {
+            const canEdit = await checkUserPermission('EDIT');
+            if (!canEdit) return;
+
+            if (!selectedNode) return;
+            const newMember = {
+                id: Date.now().toString(),
+                name: "Шинэ гишүүн",
+                tradName: "",
+                clan: selectedNode.clan || "",
+                birth: "",
+                gender: "M",
+                children: []
+            };
+
+            if (type === 'child') {
+                if (!selectedNode.children) selectedNode.children = [];
+                selectedNode.children.push(newMember);
+            }
+            updateTree();
+        }
+
+        async function deleteSelectedNode() {
+            const canEdit = await checkUserPermission('EDIT');
+            if (!canEdit) return;
+            alert("Гишүүн устгагдлаа");
+        }
+
+        // --- AUTH & CLOUD STORAGE ---
+        async function toggleAuth() {
+            if (currentUser) {
+                await supabaseClient.auth.signOut();
+                alert("Системээс гарлаа.");
+                location.reload();
+                return;
+            }
+
+            const email = prompt("И-мэйл хаягаа оруулна уу:");
+            if (email) {
+                const { error } = await supabaseClient.auth.signInWithOtp({ email });
+                if (error) alert("Алдаа гарлаа: " + error.message);
+                else alert("Нэвтрэх холбоосыг и-мэйл рүү тань илгээлээ!");
+            }
+        }
+
+        async function saveToCloud() {
+            const canSave = await checkUserPermission('SAVE');
+            if (!canSave) return;
+
+            const { error } = await supabaseClient
+                .from('family_trees')
+                .upsert({ user_id: currentUser.id, tree_data: treeData });
+
+            if (error) alert("Хадгалахад алдаа гарлаа: " + error.message);
+            else alert("Амжилттай хадгалагдлаа!");
+        }
+
+        // --- EXPORT FUNCTIONS ---
+        async function exportImage(format) {
+            const canExport = await checkUserPermission('PNG');
+            if (!canExport) return;
+
+            const container = document.getElementById('tree-container');
+            domtoimage.toPng(container)
+                .then(dataUrl => {
+                    const link = document.createElement('a');
+                    link.download = `urgiin-mod.${format}`;
+                    link.href = dataUrl;
+                    link.click();
+                });
+        }
+
+        async function exportPDF() {
+            const canExport = await checkUserPermission('PDF');
+            if (!canExport) return;
+
+            const container = document.getElementById('tree-container');
+            domtoimage.toPng(container).then(dataUrl => {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('landscape');
+                pdf.addImage(dataUrl, 'PNG', 10, 10, 280, 180);
+                pdf.save("urgiin-mod.pdf");
+            });
+        }
+
+        // Sidebar input өөрчлөгдөхөд засах эрх шалгах
+        document.querySelectorAll('.sidebar input, .sidebar select').forEach(element => {
+            element.addEventListener('change', async (e) => {
+                const canEdit = await checkUserPermission('EDIT');
+                if (!canEdit) {
+                    updateTree();
+                    return;
+                }
+                
+                if (selectedNode) {
+                    selectedNode.name = document.getElementById("node-name").value;
+                    selectedNode.tradName = document.getElementById("node-trad-name").value;
+                    selectedNode.clan = document.getElementById("node-clan").value;
+                    selectedNode.birth = document.getElementById("node-birth").value;
+                    selectedNode.gender = document.getElementById("node-gender").value;
+                    updateTree();
+                }
+            });
+        });
+
+        // Init App
+        updateTree();
+    </script>
+</body>
+</html>
