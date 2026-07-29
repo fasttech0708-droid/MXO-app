@@ -320,6 +320,21 @@
       gap: 8px;
     }
     .modal-row input { flex: 1; }
+
+    #toast-msg {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2c3e50;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 2000;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -340,8 +355,8 @@
     <div class="control-row">
       <span class="row-title">📐 Загвар:</span>
       <select id="layoutType" onchange="resetZoom(); updateTree();">
-        <option value="full-circle">Бүтэн тойрог (360°)</option>
-        <option value="vertical-tree" selected>Босоо мод (Доороос дээш)</option>
+        <option value="full-circle" selected>Бүтэн тойрог (360°)</option>
+        <option value="vertical-tree">Босоо мод (Доороос дээш)</option>
         <option value="horizontal-tree">Хэвтээ салбар мод</option>
       </select>
 
@@ -481,28 +496,52 @@
     </div>
   </div>
 
+  <div id="toast-msg"></div>
+
   <script>
-    const SUPABASE_URL = "https://mxo-app.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14by1hcHAiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNzQ1Nzk5NiwiZXhwIjoyMDUzMDMzOTk2fQ.eyJ1c2VyIjpudWxsfQ";
-    const _supabase = (SUPABASE_URL && !SUPABASE_URL.includes("YOUR_SUPABASE_URL")) ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+    // Supabase Credentials
+    const SUPABASE_URL = "https://bmwmdevitmefslizmsdo.supabase.co";
+    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+    
+    let _supabase = null;
+    try {
+      if (window.supabase && SUPABASE_URL && !SUPABASE_URL.includes("YOUR_SUPABASE")) {
+        _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch(e) {
+      console.log("Supabase setup skipped:", e);
+    }
 
     let currentUser = null;
 
+    function showToast(msg) {
+      const toast = document.getElementById("toast-msg");
+      toast.innerText = msg;
+      toast.style.display = "block";
+      setTimeout(() => { toast.style.display = "none"; }, 3000);
+    }
+
     async function checkUserSession() {
       if (!_supabase) return;
-      const { data: { session } } = await _supabase.auth.getSession();
-      if (session) {
-        currentUser = session.user;
-        updateAuthUI();
-        loadTreeFromCloud();
+      try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (session) {
+          currentUser = session.user;
+          updateAuthUI();
+          loadTreeFromCloud();
+        }
+      } catch(err) {
+        console.log("Session check error handled gracefully.");
       }
     }
 
     if (_supabase) {
-      _supabase.auth.onAuthStateChange((event, session) => {
-        currentUser = session ? session.user : null;
-        updateAuthUI();
-      });
+      try {
+        _supabase.auth.onAuthStateChange((event, session) => {
+          currentUser = session ? session.user : null;
+          updateAuthUI();
+        });
+      } catch(e){}
     }
 
     function updateAuthUI() {
@@ -527,57 +566,69 @@
 
     async function handleLogin() {
       if (!_supabase) {
-        alert("Supabase холбогдоогүй байна. API түлхүүрээ оруулна уу.");
+        showToast("Нэвтрэх үйлчилгээ одоогоор боломжгүй байна.");
         return;
       }
       const email = document.getElementById("authEmail").value.trim();
       const password = document.getElementById("authPassword").value.trim();
 
       if (!email || !password) {
-        alert("Имэйл болон нууц үгээ бүрэн оруулна уу!");
+        showToast("Имэйл болон нууц үгээ оруулна уу!");
         return;
       }
 
-      const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        alert("Нэвтрэхэд алдаа гарлаа: " + error.message);
-      } else {
-        closeModal('authModal');
-        loadTreeFromCloud();
+      try {
+        const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          showToast("Алдаа гарлаа: " + error.message);
+        } else {
+          closeModal('authModal');
+          loadTreeFromCloud();
+        }
+      } catch(err) {
+        showToast("Холболтын алдаа гарлаа.");
       }
     }
 
     async function handleSignUp() {
       if (!_supabase) {
-        alert("Supabase холбогдоогүй байна.");
+        showToast("Бүртгэх үйлчилгээ одоогоор боломжгүй байна.");
         return;
       }
       const email = document.getElementById("authEmail").value.trim();
       const password = document.getElementById("authPassword").value.trim();
 
       if (!email || !password) {
-        alert("Имэйл болон нууц үгээ оруулна уу!");
+        showToast("Имэйл болон нууц үгээ оруулна уу!");
         return;
       }
 
-      const { data, error } = await _supabase.auth.signUp({ email, password });
-      if (error) {
-        alert("Бүртгүүлэхэд алдаа гарлаа: " + error.message);
-      } else {
-        alert("Бүртгэл амжилттай!");
-        closeModal('authModal');
+      try {
+        const { data, error } = await _supabase.auth.signUp({ email, password });
+        if (error) {
+          showToast("Бүртгүүлэхэд алдаа гарлаа: " + error.message);
+        } else {
+          showToast("Бүртгэл амжилттай!");
+          closeModal('authModal');
+        }
+      } catch(err) {
+        showToast("Холболтын алдаа гарлаа.");
       }
     }
 
     async function handleLogout() {
-      if (_supabase) await _supabase.auth.signOut();
-      alert("Системээс гарлаа.");
+      if (_supabase) {
+        try { await _supabase.auth.signOut(); } catch(e){}
+      }
+      showToast("Системээс гарлаа.");
     }
 
     async function saveTreeToCloud() {
+      // LocalStorage-д байнга хадгална
+      localStorage.setItem("local_family_tree", JSON.stringify(familyData));
+
       if (!currentUser || !_supabase) {
-        alert("Ургийн модоо хадгалахын тулд эхлээд нэвтэрнэ үү!");
-        openAuthModal();
+        showToast("Мод таны хөхөч төхөөрөмжид хадгалагдлаа! Сүлжээнд хадгалахын тулд нэвтрэнэ үү.");
         return;
       }
 
@@ -585,51 +636,64 @@
       btn.innerText = "Хадгалж байна...";
       btn.disabled = true;
 
-      const { data: existingData } = await _supabase
-        .from('family_trees')
-        .select('id')
-        .eq('user_id', currentUser.id)
-        .single();
-
-      let error = null;
-
-      if (existingData) {
-        const res = await _supabase
+      try {
+        const { data: existingData } = await _supabase
           .from('family_trees')
-          .update({ tree_data: familyData, updated_at: new Date() })
-          .eq('user_id', currentUser.id);
-        error = res.error;
-      } else {
-        const res = await _supabase
-          .from('family_trees')
-          .insert([{ user_id: currentUser.id, tree_data: familyData }]);
-        error = res.error;
-      }
+          .select('id')
+          .eq('user_id', currentUser.id)
+          .single();
 
-      btn.innerText = "☁️ Cloud-д хадгалах";
-      btn.disabled = false;
+        let error = null;
 
-      if (error) {
-        alert("Алдаа гарлаа: " + error.message);
-      } else {
-        alert("Амжилттай хадгалагдлаа!");
+        if (existingData) {
+          const res = await _supabase
+            .from('family_trees')
+            .update({ tree_data: familyData, updated_at: new Date() })
+            .eq('user_id', currentUser.id);
+          error = res.error;
+        } else {
+          const res = await _supabase
+            .from('family_trees')
+            .insert([{ user_id: currentUser.id, tree_data: familyData }]);
+          error = res.error;
+        }
+
+        btn.innerText = "☁️ Cloud-д хадгалах";
+        btn.disabled = false;
+
+        if (error) {
+          showToast("Хадгалахад алдаа гарлаа.");
+        } else {
+          showToast("Амжилттай хадгалагдлаа!");
+        }
+      } catch(e) {
+        btn.innerText = "☁️ Cloud-д хадгалах";
+        btn.disabled = false;
+        showToast("Төхөөрөмжид амжилттай хадгалагдлаа!");
       }
     }
 
     async function loadTreeFromCloud() {
+      const localData = localStorage.getItem("local_family_tree");
+      if (localData) {
+        try { familyData = JSON.parse(localData); } catch(e){}
+      }
+
       if (!currentUser || !_supabase) return;
 
-      const { data } = await _supabase
-        .from('family_trees')
-        .select('tree_data')
-        .eq('user_id', currentUser.id)
-        .single();
+      try {
+        const { data } = await _supabase
+          .from('family_trees')
+          .select('tree_data')
+          .eq('user_id', currentUser.id)
+          .single();
 
-      if (data && data.tree_data) {
-        familyData = data.tree_data;
-        selectedNode = null;
-        updateTree();
-      }
+        if (data && data.tree_data) {
+          familyData = data.tree_data;
+          selectedNode = null;
+          updateTree();
+        }
+      } catch(e){}
     }
 
     const cyrToMongolMap = {
@@ -661,6 +725,12 @@
         }
       ]
     };
+
+    // Ачаалахад LocalStorage-оос унших
+    const savedTree = localStorage.getItem("local_family_tree");
+    if (savedTree) {
+      try { familyData = JSON.parse(savedTree); } catch(e){}
+    }
 
     let selectedNode = null;
     let idCounter = 10;
@@ -726,7 +796,7 @@
       const yearVal = document.getElementById("modalYearInput").value.trim();
 
       if (!nameVal) {
-        alert("Нэрийг оруулна уу!");
+        showToast("Нэрийг оруулна уу!");
         return;
       }
 
@@ -738,6 +808,7 @@
       }
 
       selectedNode.data.year = yearVal;
+      localStorage.setItem("local_family_tree", JSON.stringify(familyData));
       updateTree();
       closeModal('nodeModal');
     }
@@ -747,7 +818,7 @@
       const childYear = document.getElementById("modalChildYearInput").value.trim();
 
       if (!childName) {
-        alert("Хүүхдийн нэрийг оруулна уу!");
+        showToast("Хүүхдийн нэрийг оруулна уу!");
         return;
       }
 
@@ -765,6 +836,7 @@
         color: selectedNode.data.color || null
       });
 
+      localStorage.setItem("local_family_tree", JSON.stringify(familyData));
       updateTree();
       closeModal('nodeModal');
     }
@@ -819,6 +891,7 @@
       selectedNode.descendants().forEach(d => {
         d.data.color = colorValue;
       });
+      localStorage.setItem("local_family_tree", JSON.stringify(familyData));
       updateTree();
     }
 
@@ -1067,7 +1140,7 @@
       const year = yearInput.value.trim();
 
       if (!childName) {
-        alert("Хүүхдийн нэрийг оруулна уу!");
+        showToast("Хүүхдийн нэрийг оруулна уу!");
         return;
       }
 
@@ -1085,6 +1158,7 @@
         color: selectedNode.data.color || null
       });
 
+      localStorage.setItem("local_family_tree", JSON.stringify(familyData));
       nameInput.value = "";
       yearInput.value = "";
       updateTree();
@@ -1098,7 +1172,7 @@
       const newYear = yearInput.value.trim();
 
       if (!newName) {
-        alert("Нэрийг оруулна уу!");
+        showToast("Нэрийг оруулна уу!");
         return;
       }
 
@@ -1111,6 +1185,7 @@
 
       selectedNode.data.year = newYear;
 
+      localStorage.setItem("local_family_tree", JSON.stringify(familyData));
       nameInput.value = "";
       yearInput.value = "";
       updateTree();
@@ -1118,16 +1193,15 @@
 
     function deleteNode() {
       if (selectedNode.depth === 0) {
-        alert("Төв эх өвөг дээдсийг устгах боломжгүй!");
+        showToast("Төв эх өвөг дээдсийг устгах боломжгүй!");
         return;
       }
 
-      if (confirm(`"${selectedNode.data.name.replace('\n', ' ')}" устгах уу?`)) {
-        const parent = selectedNode.parent;
-        parent.data.children = parent.data.children.filter(child => child.id !== selectedNode.data.id);
-        selectedNode = parent;
-        updateTree();
-      }
+      const parent = selectedNode.parent;
+      parent.data.children = parent.data.children.filter(child => child.id !== selectedNode.data.id);
+      selectedNode = parent;
+      localStorage.setItem("local_family_tree", JSON.stringify(familyData));
+      updateTree();
     }
 
     async function exportPDF() {
@@ -1175,7 +1249,7 @@
         pdf.save("Ургийн_мод.pdf");
 
       } catch (err) {
-        alert("PDF татахад алдаа гарлаа: " + err.message);
+        showToast("PDF татахад алдаа гарлаа.");
       } finally {
         if (zoomBtn) zoomBtn.style.display = "flex";
         node.classList.remove("no-shadow");
