@@ -5,15 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ургийн Мод Хөтлөх Програм</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.1.6/dom-to-image-more.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f4f6f9; margin: 0; padding: 20px; }
-    #auth-bar { width: 100%; max-width: 1100px; display: flex; justify-content: space-between; align-items: center; background: #2c3e50; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 15px; }
-    #admin-panel { width: 100%; max-width: 1100px; background: #f1c40f; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: none; text-align: center; font-weight: bold; }
-    .action-btn { padding: 7px 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; color: white; }
-    #chart-container { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 1000px; height: 700px; overflow: hidden; border: 1px solid #e2e8f0; }
+    body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+    #auth-bar { width: 100%; max-width: 1000px; background: #2c3e50; color: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    #admin-panel { width: 100%; max-width: 1000px; background: #f1c40f; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; text-align: center; font-weight: bold; }
+    #controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; width: 1000px; }
+    #chart-container { background: white; width: 1000px; height: 600px; border: 1px solid #ddd; border-radius: 8px; }
+    .action-btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -22,22 +21,26 @@
 
   <div id="auth-bar">
     <span id="user-status-text">Зочин хэрэглэгч</span>
-    <button id="auth-btn" class="action-btn" style="background:#3498db" onclick="openAuthModal()">🔑 Нэвтрэх</button>
+    <button id="auth-btn" class="action-btn" style="background:#3498db" onclick="login()">🔑 Нэвтрэх</button>
     <button id="logout-btn" class="action-btn" style="background:#e74c3c; display:none;" onclick="handleLogout()">Гарах</button>
   </div>
 
   <div id="admin-panel">
-    🛡️ АДМИН ХЯНАХ САМБАР: 
-    <a href="https://supabase.com/dashboard/project/bmwmdevitmefslizmsdo" target="_blank" style="color:black; margin:0 10px;">📊 Дата бааз</a>
-    <a href="https://vercel.com/dashboard" target="_blank" style="color:black; margin:0 10px;">🚀 Vercel</a>
+    🛡️ АДМИН ХЯНАХ: 
+    <a href="https://supabase.com/dashboard/project/bmwmdevitmefslizmsdo" target="_blank">📊 Дата бааз</a>
   </div>
 
-  <div id="chart-container"><div id="chart"></div></div>
+  <div id="controls">
+    <input type="text" id="nameInput" placeholder="Нэр...">
+    <input type="text" id="yearInput" placeholder="Он...">
+    <button class="action-btn" style="background:#27ae60" onclick="addNode()">+ Хүүхэд нэмэх</button>
+  </div>
+
+  <div id="chart-container"><svg id="chart" width="1000" height="600"></svg></div>
 
   <script>
-    const SUPABASE_URL = "https://bmwmdevitmefslizmsdo.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_sHj0rm2VJ_I7eOsVCrWBDg_O6kbW24_";
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const _supabase = supabase.createClient("https://bmwmdevitmefslizmsdo.supabase.co", "sb_publishable_sHj0rm2VJ_I7eOsVCrWBDg_O6kbW24_");
+    let treeData = { name: "Өвөг дээдэс", children: [] };
 
     async function checkUser() {
       const { data: { user } } = await _supabase.auth.getUser();
@@ -45,17 +48,39 @@
         document.getElementById("user-status-text").innerText = `Нэвтэрсэн: ${user.email}`;
         document.getElementById("auth-btn").style.display = "none";
         document.getElementById("logout-btn").style.display = "inline-block";
-        
-        // Админ шалгах хэсэг
-        if (user.email === "chimde0128@gmail.com") {
-          document.getElementById("admin-panel").style.display = "block";
-        }
+        if (user.email === "chimde0128@gmail.com") document.getElementById("admin-panel").style.display = "block";
+        drawTree();
       }
     }
 
+    function addNode() {
+      const name = document.getElementById("nameInput").value;
+      if (!name) return alert("Нэрээ оруулна уу!");
+      treeData.children.push({ name: name });
+      drawTree();
+    }
+
+    function drawTree() {
+      d3.select("#chart").selectAll("*").remove();
+      const svg = d3.select("#chart");
+      const root = d3.hierarchy(treeData);
+      const treeLayout = d3.tree().size([900, 500]);
+      treeLayout(root);
+      svg.selectAll("circle").data(root.descendants()).enter().append("circle")
+        .attr("cx", d => d.x).attr("cy", d => d.y).attr("r", 20).attr("fill", "#3498db");
+      svg.selectAll("text").data(root.descendants()).enter().append("text")
+        .attr("x", d => d.x).attr("y", d => d.y + 40).text(d => d.data.name).attr("text-anchor", "middle");
+    }
+
+    async function login() {
+        const email = prompt("Имэйлээ оруулна уу:");
+        const password = prompt("Нууц үгээ оруулна уу:");
+        const { error } = await _supabase.auth.signInWithPassword({ email, password });
+        if (error) alert("Нэвтрэх алдаа: " + error.message);
+        else window.location.reload();
+    }
+
     function handleLogout() { _supabase.auth.signOut().then(() => window.location.reload()); }
-    function openAuthModal() { alert("Нэвтрэх хэсэг..."); }
-    
     window.onload = checkUser;
   </script>
 </body>
