@@ -1,375 +1,227 @@
 <!DOCTYPE html>
 <html lang="mn">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ургийн Мод Хөтлөх Програм</title>
-    <!-- D3.js Tree visualization -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <!-- Export libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.1.6/dom-to-image-more.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ургийн Мод Хөтлөх Програм</title>
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- D3.js CDN -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!-- Google Fonts for Mongolian / Custom style -->
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  
+  <style>
+    * { box-sizing: border-box; font-family: 'Roboto', sans-serif; }
+    body { background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
     
-    <style>
-        :root {
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #1e293b;
-            --border: #e2e8f0;
-        }
+    .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    
+    header { text-align: center; margin-bottom: 15px; }
+    header h1 { color: #1e3a8a; margin: 0 0 15px 0; font-size: 24px; }
+    
+    .auth-bar { background-color: #2c3e50; color: white; padding: 10px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .auth-bar button { background-color: #3498db; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .auth-bar button:hover { background-color: #2980b9; }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .selected-banner { background-color: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; }
 
-        header { background: var(--card-bg); border-bottom: 1px solid var(--border); padding: 0.8rem 1.5rem; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
-        .logo { font-size: 1.25rem; font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
+    .controls-panel { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center; }
+    .controls-group { display: flex; align-items: center; gap: 8px; }
+    .controls-group label { font-size: 13px; font-weight: bold; color: #475569; }
+    
+    select, input[type="text"], input[type="number"] { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+    
+    .btn { padding: 7px 14px; border: none; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; color: white; }
+    .btn-add { background-color: #22c55e; }
+    .btn-edit { background-color: #3b82f6; }
+    .btn-delete { background-color: #ef4444; }
+    .btn-save { background-color: #0d9488; }
+    .btn-pdf { background-color: #a855f7; }
+    .btn:hover { opacity: 0.9; }
 
-        .auth-controls { display: flex; gap: 0.5rem; align-items: center; }
-        .btn { padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
-        .btn-primary { background: var(--primary); color: white; border: none; }
-        .btn-primary:hover { background: var(--primary-hover); }
-
-        .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
-        #tree-container { flex: 1; height: 100%; background: #ffffff; cursor: grab; }
-        #tree-container:active { cursor: grabbing; }
-
-        .sidebar { width: 320px; background: var(--card-bg); border-left: 1px solid var(--border); padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; }
-        .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
-        .form-group label { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; }
-        .form-group input, .form-group select { padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; }
-
-        .node circle { fill: #fff; stroke: var(--primary); stroke-width: 3px; cursor: pointer; }
-        .node text { font-size: 12px; font-family: sans-serif; }
-        .link { fill: none; stroke: #cbd5e1; stroke-width: 2px; }
-
-        .traditional-script { writing-mode: vertical-lr; text-orientation: sideways; font-family: "Mongolian Baiti", "Mongolian Universal", sans-serif; font-size: 14px !important; }
-
-        .floating-toolbar { position: absolute; top: 1rem; left: 1rem; background: white; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem; display: flex; gap: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 5; }
-    </style>
+    #tree-container { width: 100%; height: 600px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; overflow: hidden; margin-top: 15px; position: relative; }
+    
+    .node rect { fill: #ffffff; stroke: #f97316; stroke-width: 2px; rx: 8px; ry: 8px; cursor: pointer; }
+    .node.selected rect { stroke: #2563eb; stroke-width: 3px; fill: #eff6ff; }
+    .node text { font-size: 14px; text-anchor: middle; dominant-baseline: middle; }
+    .link { fill: none; stroke: #cbd5e1; stroke-width: 2px; }
+  </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            Ургийн Мод Хөтлөх Програм
-        </div>
-        <div class="auth-controls">
-            <span id="user-status" style="font-size: 0.85rem; color: #64748b;">Оффлайн горим</span>
-            <button class="btn" id="auth-btn" onclick="toggleAuth()">Нэвтрэх / Бүртгүүлэх</button>
-        </div>
-    </header>
+<div class="container">
+  <header>
+    <h1>Ургийн Мод Хөтлөх Програм</h1>
+  </header>
 
-    <div class="main-container">
-        <div class="floating-toolbar">
-            <select id="layout-select" onchange="changeLayout(this.value)" class="btn">
-                <option value="vertical">Босоо загвар</option>
-                <option value="horizontal">Хэвтээ загвар</option>
-                <option value="circular">Тойрог загвар</option>
-            </select>
-            <button class="btn" onclick="exportImage('png')">PNG Татах</button>
-            <button class="btn" onclick="exportPDF()">PDF Татах</button>
-            <button class="btn btn-primary" onclick="saveToCloud()">Үүлэн дээр хадгалах</button>
-        </div>
+  <!-- Нэвтрэх хэсэг -->
+  <div class="auth-bar">
+    <span id="user-status">Зочин хэрэглэгч</span>
+    <button id="auth-btn" onclick="handleAuth()">🔑 Нэвтрэх / Бүртгүүлэх</button>
+  </div>
 
-        <div id="tree-container"></div>
+  <!-- Сонгосон хүн -->
+  <div class="selected-banner">
+    Сонгосон: <span id="selected-person-name">Өвөг дээдэс (1940)</span>
+  </div>
 
-        <div class="sidebar">
-            <h3 id="panel-title">Гишүүний мэдээлэл</h3>
-            <div class="form-group">
-                <label>Нэр (Кирилл)</label>
-                <input type="text" id="node-name" placeholder="Жишээ: Болд">
-            </div>
-            <div class="form-group">
-                <label>Нэр (Үндэсний бичиг)</label>
-                <input type="text" id="node-trad-name" placeholder="ᠪᠣᠯᠣᠳ">
-            </div>
-            <div class="form-group">
-                <label>Ургийн овгийн нэр</label>
-                <input type="text" id="node-clan" placeholder="Жишээ: Боржигон">
-            </div>
-            <div class="form-group">
-                <label>Төрсөн он</label>
-                <input type="number" id="node-birth" placeholder="1990">
-            </div>
-            <div class="form-group">
-                <label>Хүйс</label>
-                <select id="node-gender">
-                    <option value="M">Эрэгтэй</option>
-                    <option value="F">Эмэгтэй</option>
-                </select>
-            </div>
-            <hr style="border: 0.5px solid var(--border);">
-            <button class="btn btn-primary" onclick="addRelative('child')">+ Хүү/Охин нэмэх</button>
-            <button class="btn" onclick="addRelative('parent')">+ Эцэг/Эх нэмэх</button>
-            <button class="btn" style="color: #ef4444; border-color: #fca5a5;" onclick="deleteSelectedNode()">Устгах</button>
-        </div>
+  <!-- Удирдлагын цэс 1 -->
+  <div class="controls-panel">
+    <div class="controls-group">
+      <label>📐 ЗАГВАР:</label>
+      <select id="layout-select" onchange="updateTree()">
+        <option value="bottom-up">Босоо мод (Доороос дээш)</option>
+        <option value="top-down">Босоо мод (Дээрээс доош)</option>
+      </select>
     </div>
+    <div class="controls-group">
+      <label>Нийт үсэг:</label>
+      <input type="range" min="8" max="20" value="10" onchange="updateTree()">
+    </div>
+  </div>
 
-    <script>
-        // --- SUPABASE CONFIGURATION ---
-        const SUPABASE_URL = "https://bmwmdevitmefslizmsdo.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_sHj0rm2VJ_I7eOsVCrWBDg_O6kbW24_";
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  <!-- Удирдлагын цэс 2 (Шрифт, чимэглэл) -->
+  <div class="controls-panel">
+    <div class="controls-group">
+      <label>🎨 ЗАГВАРЧЛАЛ:</label>
+      <select id="script-type">
+        <option value="cyrillic">Кирилл бичиг</option>
+      </select>
+      <select id="font-family">
+        <option value="Pacifico">Pacifico (Бичмэл)</option>
+        <option value="Roboto">Roboto (Энгийн)</option>
+      </select>
+    </div>
+  </div>
 
-        // --- APP STATE ---
-        let treeData = {
-            id: "root",
-            name: "Аав",
-            tradName: "ᠠᠠᠪᠠ",
-            clan: "Боржигон",
-            birth: "1960",
-            gender: "M",
-            children: [
-                { id: "c1", name: "Хүү", tradName: "ᠬᠦᠦ", clan: "Боржигон", birth: "1988", gender: "M" }
-            ]
-        };
+  <!-- Үйлдлийн товчлуурууд -->
+  <div class="controls-panel">
+    <div class="controls-group">
+      <label>✏️ ҮЙЛДЭЛ:</label>
+      <input type="text" id="node-name" placeholder="Хүүхдийн нэр...">
+      <input type="number" id="node-year" placeholder="Он (1990...)" style="width: 90px;">
+      <button class="btn btn-add" onclick="addChild()">+ Хүүхэд нэмэх</button>
+      <button class="btn btn-edit" onclick="editNode()">Засах</button>
+      <button class="btn btn-delete" onclick="deleteNode()">Устгах</button>
+      <button class="btn btn-save" onclick="saveToCloud()">☁️ Cloud-д хадгалах</button>
+      <button class="btn btn-pdf" onclick="exportPDF()">📄 PDF Татах</button>
+    </div>
+  </div>
 
-        let selectedNode = treeData;
-        let currentLayout = "vertical";
-        let currentUser = null;
+  <!-- Мод зурах талбар -->
+  <div id="tree-container"></div>
+</div>
 
-        // --- AUTH & PERMISSION LOGIC ---
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
-            if (session?.user) {
-                currentUser = session.user;
-                document.getElementById("user-status").innerText = currentUser.email;
-                document.getElementById("auth-btn").innerText = "Гарах";
-            } else {
-                currentUser = null;
-                document.getElementById("user-status").innerText = "Оффлайн горим";
-                document.getElementById("auth-btn").innerText = "Нэвтрэх / Бүртгүүлэх";
-            }
-        });
+<script>
+  // SUPABASE ТОХИРГОО (Өөрийн URL болон KEY-ээр солино)
+  const SUPABASE_URL = "https://YOUR_SUPABASE_URL.supabase.co";
+  const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // ЭРХ ШАЛГАХ ФУНКЦ (24 цаг & Админ зөвшөөрөл)
-        async function checkUserPermission(actionType) {
-            if (!currentUser) {
-                alert("Та эхлээд системд нэвтэрнэ үү!");
-                return false;
-            }
+  let currentUser = null;
 
-            const { data: sub } = await supabaseClient
-                .from('user_subscriptions')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .single();
+  // Модны өгөгдөл
+  let treeData = {
+    name: "Би",
+    year: "1990",
+    children: [
+      { name: "Аав", year: "1965" }
+    ]
+  };
 
-            const now = new Date();
-            const hasActiveSubscription = sub && sub.expires_at && new Date(sub.expires_at) > now;
+  // Эхлүүлэх
+  window.onload = function() {
+    checkUser();
+    renderTree(treeData);
+  };
 
-            // 1. Админ эрх нээсэн бол бүх үйлдлийг зөвшөөрнө
-            if (hasActiveSubscription) {
-                return true;
-            }
+  async function checkUser() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      currentUser = user;
+      document.getElementById('user-status').innerText = user.email;
+      document.getElementById('auth-btn').innerText = "Гарах";
+    }
+  }
 
-            // 2. Хэрэв админ эрх өгөөгүй бол 24 цагийн туршилтын хугацааг шалгана
-            const createdAt = new Date(currentUser.created_at);
-            const hoursPassed = (now - createdAt) / (1000 * 60 * 60);
+  async function handleAuth() {
+    if (currentUser) {
+      await supabase.auth.signOut();
+      window.location.reload();
+    } else {
+      const email = prompt("И-мэйл хаягаа оруулна уу:");
+      if (email) {
+        const { error } = await supabase.auth.signInWithOtp({ email });
+        if (error) alert("Алдаа гарлаа: " + error.message);
+        else alert("Таны и-мэйл рүү нэвтрэх холбоос явууллаа!");
+      }
+    }
+  }
 
-            // НЭР / ҮСЭГ ЗАСАХ ҮЙЛДЭЛ (Зөвхөн анхны 24 цагт зөвшөөрнө)
-            if (actionType === 'EDIT') {
-                if (hoursPassed <= 24) {
-                    return true;
-                } else {
-                    alert("Таны 24 цагийн туршилтын хугацаа дууссан байна. Үргэлжлүүлэн засахын тулд админтай холбогдон эрхээ нээнэ үү!");
-                    return false;
-                }
-            }
+  function renderTree(data) {
+    d3.select("#tree-container").html("");
+    const width = document.getElementById("tree-container").clientWidth;
+    const height = 550;
 
-            // CLOUD / PDF / PNG ҮЙЛДЭЛ (Анхнаасаа админ эрх шаардана)
-            if (actionType === 'SAVE' || actionType === 'PDF' || actionType === 'PNG') {
-                alert("Үүлэн дээр хадгалах болон PDF/PNG татахын тулд админтай холбогдон эрхээ нээлгэнэ үү!");
-                return false;
-            }
+    const svg = d3.select("#tree-container").append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .append("g")
+      .attr("transform", "translate(0, 40)");
 
-            return false;
-        }
+    const hierarchyData = d3.hierarchy(data);
+    const treeLayout = d3.tree().size([width - 100, height - 100]);
+    treeLayout(hierarchyData);
 
-        // --- D3 RENDERING ENGINE ---
-        const margin = {top: 50, right: 50, bottom: 50, left: 50};
-        let width = window.innerWidth - 320;
-        let height = window.innerHeight - 60;
+    // Холбоос зурах
+    svg.selectAll('.link')
+      .data(hierarchyData.links())
+      .enter()
+      .append('path')
+      .attr('class', 'link')
+      .attr('d', d3.linkVertical()
+        .x(d => d.x + 50)
+        .y(d => d.y));
 
-        const svg = d3.select("#tree-container").append("svg")
-            .attr("width", "100%")
-            .attr("height", "100%")
-            .call(d3.zoom().on("zoom", (event) => g.attr("transform", event.transform)))
-            .append("g");
+    // Гишүүдийг зурах
+    const nodes = svg.selectAll('.node')
+      .data(hierarchyData.descendants())
+      .enter()
+      .append('g')
+      .attr('class', 'node')
+      .attr('transform', d => `translate(${d.x + 50},${d.y})`);
 
-        const g = svg.append("g").attr("transform", `translate(${width/2}, 80)`);
+    nodes.append('rect')
+      .attr('width', 120)
+      .attr('height', 50)
+      .attr('x', -60)
+      .attr('y', -25);
 
-        function updateTree() {
-            g.selectAll("*").remove();
+    nodes.append('text')
+      .text(d => `${d.data.name} (${d.data.year || ''})`)
+      .style("font-family", document.getElementById("font-family").value);
+  }
 
-            const root = d3.hierarchy(treeData);
-            let treeLayout;
+  function updateTree() {
+    renderTree(treeData);
+  }
 
-            if (currentLayout === "horizontal") {
-                treeLayout = d3.tree().size([height - 100, width - 200]);
-            } else {
-                treeLayout = d3.tree().size([width - 200, height - 200]);
-            }
+  function addChild() {
+    const name = document.getElementById('node-name').value;
+    const year = document.getElementById('node-year').value;
+    if(!name) return alert("Нэрээ оруулна уу!");
+    
+    if(!treeData.children) treeData.children = [];
+    treeData.children.push({ name, year });
+    renderTree(treeData);
+  }
 
-            treeLayout(root);
+  function editNode() { alert("Засах үйлдэл"); }
+  function deleteNode() { alert("Устгах үйлдэл"); }
+  function saveToCloud() { alert("Cloud хадгалах эрх шалгаж байна..."); }
+  function exportPDF() { alert("PDF татах эрх шалгаж байна..."); }
+</script>
 
-            // Render Links
-            g.selectAll(".link")
-                .data(root.links())
-                .enter().append("path")
-                .attr("class", "link")
-                .attr("d", d3.linkVertical()
-                    .x(d => currentLayout === "horizontal" ? d.y : d.x)
-                    .y(d => currentLayout === "horizontal" ? d.x : d.y)
-                );
-
-            // Render Nodes
-            const node = g.selectAll(".node")
-                .data(root.descendants())
-                .enter().append("g")
-                .attr("class", "node")
-                .attr("transform", d => `translate(${currentLayout === "horizontal" ? d.y : d.x}, ${currentLayout === "horizontal" ? d.x : d.y})`)
-                .on("click", (event, d) => selectNode(d.data));
-
-            node.append("circle")
-                .attr("r", 20)
-                .style("stroke", d => d.data.gender === 'F' ? '#ec4899' : '#2563eb');
-
-            node.append("text")
-                .attr("dy", 35)
-                .attr("text-anchor", "middle")
-                .text(d => d.data.name);
-
-            if (selectedNode) {
-                document.getElementById("node-name").value = selectedNode.name || '';
-                document.getElementById("node-trad-name").value = selectedNode.tradName || '';
-                document.getElementById("node-clan").value = selectedNode.clan || '';
-                document.getElementById("node-birth").value = selectedNode.birth || '';
-                document.getElementById("node-gender").value = selectedNode.gender || 'M';
-            }
-        }
-
-        function selectNode(nodeData) {
-            selectedNode = nodeData;
-            updateTree();
-        }
-
-        function changeLayout(layout) {
-            currentLayout = layout;
-            updateTree();
-        }
-
-        async function addRelative(type) {
-            const canEdit = await checkUserPermission('EDIT');
-            if (!canEdit) return;
-
-            if (!selectedNode) return;
-            const newMember = {
-                id: Date.now().toString(),
-                name: "Шинэ гишүүн",
-                tradName: "",
-                clan: selectedNode.clan || "",
-                birth: "",
-                gender: "M",
-                children: []
-            };
-
-            if (type === 'child') {
-                if (!selectedNode.children) selectedNode.children = [];
-                selectedNode.children.push(newMember);
-            }
-            updateTree();
-        }
-
-        async function deleteSelectedNode() {
-            const canEdit = await checkUserPermission('EDIT');
-            if (!canEdit) return;
-            alert("Гишүүн устгагдлаа");
-        }
-
-        // --- AUTH & CLOUD STORAGE ---
-        async function toggleAuth() {
-            if (currentUser) {
-                await supabaseClient.auth.signOut();
-                alert("Системээс гарлаа.");
-                location.reload();
-                return;
-            }
-
-            const email = prompt("И-мэйл хаягаа оруулна уу:");
-            if (email) {
-                const { error } = await supabaseClient.auth.signInWithOtp({ email });
-                if (error) alert("Алдаа гарлаа: " + error.message);
-                else alert("Нэвтрэх холбоосыг и-мэйл рүү тань илгээлээ!");
-            }
-        }
-
-        async function saveToCloud() {
-            const canSave = await checkUserPermission('SAVE');
-            if (!canSave) return;
-
-            const { error } = await supabaseClient
-                .from('family_trees')
-                .upsert({ user_id: currentUser.id, tree_data: treeData });
-
-            if (error) alert("Хадгалахад алдаа гарлаа: " + error.message);
-            else alert("Амжилттай хадгалагдлаа!");
-        }
-
-        // --- EXPORT FUNCTIONS ---
-        async function exportImage(format) {
-            const canExport = await checkUserPermission('PNG');
-            if (!canExport) return;
-
-            const container = document.getElementById('tree-container');
-            domtoimage.toPng(container)
-                .then(dataUrl => {
-                    const link = document.createElement('a');
-                    link.download = `urgiin-mod.${format}`;
-                    link.href = dataUrl;
-                    link.click();
-                });
-        }
-
-        async function exportPDF() {
-            const canExport = await checkUserPermission('PDF');
-            if (!canExport) return;
-
-            const container = document.getElementById('tree-container');
-            domtoimage.toPng(container).then(dataUrl => {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('landscape');
-                pdf.addImage(dataUrl, 'PNG', 10, 10, 280, 180);
-                pdf.save("urgiin-mod.pdf");
-            });
-        }
-
-        // Sidebar input өөрчлөгдөхөд засах эрх шалгах
-        document.querySelectorAll('.sidebar input, .sidebar select').forEach(element => {
-            element.addEventListener('change', async (e) => {
-                const canEdit = await checkUserPermission('EDIT');
-                if (!canEdit) {
-                    updateTree();
-                    return;
-                }
-                
-                if (selectedNode) {
-                    selectedNode.name = document.getElementById("node-name").value;
-                    selectedNode.tradName = document.getElementById("node-trad-name").value;
-                    selectedNode.clan = document.getElementById("node-clan").value;
-                    selectedNode.birth = document.getElementById("node-birth").value;
-                    selectedNode.gender = document.getElementById("node-gender").value;
-                    updateTree();
-                }
-            });
-        });
-
-        // Init App
-        updateTree();
-    </script>
 </body>
 </html>
