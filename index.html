@@ -4,304 +4,1196 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ургийн Мод Хөтлөх Програм</title>
-  <!-- Supabase JS CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- D3.js CDN -->
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.1.6/dom-to-image-more.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
-    * { box-sizing: border-box; font-family: 'Roboto', sans-serif; }
-    body { background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
-    
-    .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-    
-    header { text-align: center; margin-bottom: 15px; }
-    header h1 { color: #1e3a8a; margin: 0 0 15px 0; font-size: 24px; }
-    
-    .auth-bar { background-color: #2c3e50; color: white; padding: 10px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .auth-bar button { background-color: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-    .auth-bar button:hover { background-color: #0369a1; }
+    @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Lobster&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;600;700&family=Noto+Sans+Mongolian&family=Noto+Serif+Mongolian&family=Pacifico&family=Playfair+Display:ital,wght@0,600;1,600&family=Roboto:wght@400;700&display=swap');
 
-    .selected-banner { background-color: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      color: #2c3e50;
+      margin-bottom: 12px;
+    }
 
-    .controls-panel { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center; }
-    .controls-group { display: flex; align-items: center; gap: 8px; }
-    .controls-group label { font-size: 13px; font-weight: bold; color: #475569; }
-    
-    select, input[type="text"], input[type="number"] { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
-    
-    .btn { padding: 7px 14px; border: none; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; color: white; }
-    .btn-add { background-color: #22c55e; }
-    .btn-edit { background-color: #3b82f6; }
-    .btn-delete { background-color: #ef4444; }
-    .btn-save { background-color: #0d9488; }
-    .btn-pdf { background-color: #a855f7; }
-    .btn:hover { opacity: 0.9; }
+    #auth-bar {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #2c3e50;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      box-sizing: border-box;
+    }
 
-    #tree-container { width: 100%; height: 600px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; overflow: hidden; margin-top: 15px; position: relative; }
+    #controls {
+      background: #ffffff;
+      padding: 18px 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+      max-width: 1100px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    #selected-info {
+      font-weight: bold;
+      color: #d35400;
+      font-size: 15px;
+      text-align: center;
+      background: #fdf2e9;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #fae5d3;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: #fafbfc;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #eaeded;
+    }
+
+    .row-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #7f8c8d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-right: 4px;
+    }
+
+    input[type="text"], input[type="email"], input[type="password"], select {
+      padding: 7px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      background: white;
+    }
+
+    .input-name { width: 130px; }
+    .input-year { width: 70px; }
+
+    .style-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #ffffff;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      font-size: 13px;
+    }
     
-    .node rect { fill: #ffffff; stroke: #f97316; stroke-width: 2px; rx: 8px; ry: 8px; cursor: pointer; }
-    .node text { font-size: 14px; text-anchor: middle; dominant-baseline: middle; fill: #1e293b; }
-    .link { fill: none; stroke: #cbd5e1; stroke-width: 2px; }
+    .btn-toggle {
+      padding: 5px 9px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #333;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-toggle.active {
+      background: #34495e;
+      color: white;
+      border-color: #34495e;
+    }
+
+    input[type="color"] {
+      border: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .font-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      color: #34495e;
+    }
+    .font-control input[type="range"] {
+      width: 65px;
+      cursor: pointer;
+    }
+
+    button.action-btn {
+      padding: 7px 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      color: white;
+      transition: all 0.2s;
+    }
+    .btn-add { background-color: #2ecc71; }
+    .btn-add:hover { background-color: #27ae60; }
+    .btn-rename { background-color: #3498db; }
+    .btn-rename:hover { background-color: #2980b9; }
+    .btn-delete { background-color: #e74c3c; }
+    .btn-delete:hover { background-color: #c0392b; }
+    .btn-pdf { background-color: #8e44ad; }
+    .btn-pdf:hover { background-color: #732d91; }
+    .btn-reset { background-color: #34495e; }
+    .btn-reset:hover { background-color: #2c3e50; }
+    .btn-cloud { background-color: #16a085; }
+    .btn-cloud:hover { background-color: #117864; }
+
+    #chart-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 0;
+      position: relative;
+      width: 1000px;
+      height: 700px;
+      overflow: hidden;
+      cursor: grab;
+      border: 1px solid #e2e8f0;
+    }
+    #chart-container:active { cursor: grabbing; }
+    #chart-container.no-shadow { box-shadow: none !important; }
+
+    .zoom-controls {
+      position: absolute;
+      bottom: 15px;
+      right: 15px;
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    path, rect {
+      stroke: #dca342;
+      stroke-width: 1px;
+      cursor: pointer;
+      transition: fill 0.2s, opacity 0.2s;
+    }
+    path:hover, rect:hover { opacity: 0.85; }
+    .selected {
+      stroke: #e74c3c !important;
+      stroke-width: 3px !important;
+    }
+
+    .link-line {
+      fill: none;
+      stroke: #dca342;
+      stroke-width: 2px;
+    }
+
+    foreignObject { pointer-events: none; }
+
+    .node-label, .cyrillic-box, .mongolian-box, .mn-column {
+      pointer-events: none !important;
+      user-select: none !important;
+      -webkit-user-select: none !important;
+    }
+
+    .node-label {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      padding: 2px;
+    }
+
+    .cyrillic-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      width: 100%;
+      word-break: break-word;
+      overflow: hidden;
+    }
+
+    .mongolian-box {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transform-origin: center center;
+    }
+
+    .mn-column {
+      writing-mode: vertical-lr;
+      -webkit-writing-mode: vertical-lr;
+      white-space: nowrap;
+    }
+
+    .year-val { opacity: 0.75; }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px 25px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+    }
+    .modal-header {
+      font-size: 16px;
+      font-weight: bold;
+      color: #2c3e50;
+      border-bottom: 2px solid #f0f3f6;
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-close {
+      cursor: pointer;
+      font-size: 20px;
+      color: #95a5a6;
+    }
+    .modal-close:hover { color: #e74c3c; }
+    
+    .modal-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .modal-section label {
+      font-size: 11px;
+      font-weight: bold;
+      color: #7f8c8d;
+      text-transform: uppercase;
+    }
+    .modal-row {
+      display: flex;
+      gap: 8px;
+    }
+    .modal-row input { flex: 1; }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <header>
-    <h1>Ургийн Мод Хөтлөх Програм</h1>
-  </header>
+  <h2>Ургийн Мод Хөтлөх Програм</h2>
 
-  <!-- Нэвтрэх хэсэг -->
-  <div class="auth-bar">
-    <span id="user-status">Зочин хэрэглэгч</span>
-    <button id="auth-btn" onclick="handleAuth()">🔑 Нэвтрэх / Бүртгүүлэх</button>
+  <div id="auth-bar">
+    <span id="user-status-text">Зочин хэрэглэгч</span>
+    <div>
+      <button id="auth-btn" class="action-btn btn-rename" onclick="openAuthModal()">🔑 Нэвтрэх / Бүртгүүлэх</button>
+      <button id="logout-btn" class="action-btn btn-delete" style="display:none;" onclick="handleLogout()">Гарах</button>
+    </div>
   </div>
 
-  <!-- Сонгосон хүн -->
-  <div class="selected-banner">
-    Сонгосон: <span id="selected-person-name">Өвөг дээдэс (1940)</span>
-  </div>
+  <div id="controls">
+    <div id="selected-info">Сонгосон: [Төв хүн]</div>
 
-  <!-- Удирдлагын цэс 1 -->
-  <div class="controls-panel">
-    <div class="controls-group">
-      <label>📐 ЗАГВАР:</label>
-      <select id="layout-select" onchange="updateTree()">
-        <option value="bottom-up">Босоо мод (Доороос дээш)</option>
-        <option value="top-down">Босоо мод (Дээрээс доош)</option>
-        <option value="radial">Тойрог загвар (Radial)</option>
+    <div class="control-row">
+      <span class="row-title">📐 Загвар:</span>
+      <select id="layoutType" onchange="resetZoom(); updateTree();">
+        <option value="full-circle">Бүтэн тойрог (360°)</option>
+        <option value="vertical-tree" selected>Босоо мод (Доороос дээш)</option>
+        <option value="horizontal-tree">Хэвтээ салбар мод</option>
       </select>
-    </div>
-    <div class="controls-group">
-      <label>Нийт үсэг:</label>
-      <input type="range" min="8" max="20" value="10" onchange="updateTree()">
-    </div>
-  </div>
 
-  <!-- Удирдлагын цэс 2 (Шрифт, чимэглэл) -->
-  <div class="controls-panel">
-    <div class="controls-group">
-      <label>🎨 ЗАГВАРЧЛАЛ:</label>
-      <select id="script-type">
+      <div class="style-group font-control">
+        <span>Нийт үсэг:</span>
+        <input type="range" id="globalFontSizeSlider" min="6" max="22" value="10" oninput="changeGlobalFontSize(this.value)">
+        <span id="globalFontSizeLabel">10px</span>
+      </div>
+    </div>
+
+    <div class="control-row">
+      <span class="row-title">🎨 Загварчлал:</span>
+
+      <select id="scriptType" onchange="toggleScriptUI()">
         <option value="cyrillic">Кирилл бичиг</option>
+        <option value="mongolian">Монгол бичиг</option>
       </select>
-      <select id="font-family" onchange="updateTree()">
-        <option value="Pacifico">Pacifico (Бичмэл)</option>
-        <option value="Roboto">Roboto (Энгийн)</option>
-      </select>
+
+      <div class="style-group" id="cyrillic-tools">
+        <select id="fontFamilySelect" onchange="updateTree()">
+          <option value="'Pacifico', cursive">Pacifico (Бичмэл)</option>
+          <option value="'Montserrat', sans-serif">Montserrat (Орчин үеийн)</option>
+          <option value="'Playfair Display', serif">Playfair Display (Классик)</option>
+          <option value="'Caveat', cursive">Caveat (Гараар бичсэн)</option>
+          <option value="'Lobster', cursive">Lobster (Тод, Шинэлэг)</option>
+          <option value="'Merriweather', serif">Merriweather (Эртний)</option>
+          <option value="'Roboto', sans-serif">Roboto</option>
+          <option value="'Segoe UI', sans-serif">Segoe UI (Стандарт)</option>
+        </select>
+
+        <button id="btnBold" class="btn-toggle" onclick="toggleBold()">B</button>
+        <button id="btnItalic" class="btn-toggle" style="font-style: italic;" onclick="toggleItalic()">I</button>
+      </div>
+
+      <div class="style-group" id="mongolian-tools" style="display:none;">
+        <select id="mnFontSelect" onchange="updateTree()">
+          <option value="'Noto Sans Mongolian', sans-serif">Noto Sans Mongolian</option>
+          <option value="'Mongolian Baiti', sans-serif">Mongolian Baiti</option>
+          <option value="'Noto Serif Mongolian', serif">Noto Serif Mongolian</option>
+          <option value="'Menk Qagan Tig', sans-serif">Menk Qagan Tig (Хааны тиг)</option>
+        </select>
+      </div>
+
+      <div class="style-group">
+        <label style="display:flex; align-items:center; gap:3px;">
+          ✏️ <input type="color" id="textColorPicker" value="#222222" onchange="updateTree()">
+        </label>
+      </div>
+
+      <div class="style-group">
+        <label style="display:flex; align-items:center; gap:3px;">
+          🎨 <input type="color" id="bgColorPicker" value="#e8f4f8" onchange="changeBranchColor(this.value)">
+        </label>
+      </div>
+
+      <div class="style-group font-control" style="background: #edf2f7;">
+        <span>Нэг хүний:</span>
+        <input type="range" id="nodeFontSizeSlider" min="6" max="22" value="10" oninput="changeNodeFontSize(this.value)">
+        <span id="nodeFontSizeLabel">10px</span>
+      </div>
+    </div>
+
+    <div class="control-row">
+      <span class="row-title">✏️ Үйлдэл:</span>
+      <input type="text" id="nameInput" class="input-name" placeholder="Хүүхдийн нэр...">
+      <input type="text" id="yearInput" class="input-year" placeholder="Он (1990...)">
+      
+      <button class="action-btn btn-add" onclick="addChild()">+ Хүүхэд нэмэх</button>
+      <button class="action-btn btn-rename" onclick="renameNode()">Засах</button>
+      <button class="action-btn btn-delete" onclick="deleteNode()">Устгах</button>
+      <button class="action-btn btn-cloud" id="btnSaveCloud" onclick="saveTreeToCloud()">☁️ Cloud-д хадгалах</button>
+      <button class="action-btn btn-pdf" id="btnExport" onclick="exportPDF()">📄 PDF Татах</button>
     </div>
   </div>
 
-  <!-- Үйлдлийн товчлуурууд -->
-  <div class="controls-panel">
-    <div class="controls-group">
-      <label>✏️ ҮЙЛДЭЛ:</label>
-      <input type="text" id="node-name" placeholder="Хүүхдийн нэр...">
-      <input type="number" id="node-year" placeholder="Он (1990...)" style="width: 90px;">
-      <button class="btn btn-add" onclick="addChild()">+ Хүүхэд нэмэх</button>
-      <button class="btn btn-edit" onclick="editNode()">Засах</button>
-      <button class="btn btn-delete" onclick="deleteNode()">Устгах</button>
-      <button class="btn btn-save" onclick="saveToCloud()">☁️ Cloud-д хадгалах</button>
-      <button class="btn btn-pdf" onclick="exportPDF()">📄 PDF Татах</button>
+  <div id="chart-container">
+    <div class="zoom-controls" id="zoomControls">
+      <button class="action-btn btn-reset" onclick="resetZoom()">🔍 Төвд авах</button>
+    </div>
+    <div id="chart"></div>
+  </div>
+
+  <div class="modal-overlay" id="nodeModal" onclick="closeModalOnOverlay(event)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span id="modalTitle">Хүний мэдээлэл</span>
+        <span class="modal-close" onclick="closeModal('nodeModal')">&times;</span>
+      </div>
+
+      <div class="modal-section">
+        <label>Мэдээлэл засах</label>
+        <div class="modal-row">
+          <input type="text" id="modalNameInput" placeholder="Өөрийн нэр...">
+          <input type="text" id="modalYearInput" style="width: 60px;" placeholder="Он...">
+        </div>
+        <button class="action-btn btn-rename" style="margin-top:2px;" onclick="modalSaveRename()">Мэдээлэл хадгалах</button>
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 4px 0;">
+
+      <div class="modal-section">
+        <label>Шинэ хүүхэд нэмэх</label>
+        <div class="modal-row">
+          <input type="text" id="modalChildNameInput" placeholder="Хүүхдийн нэр...">
+          <input type="text" id="modalChildYearInput" style="width: 60px;" placeholder="Он...">
+        </div>
+        <button class="action-btn btn-add" style="margin-top:2px;" onclick="modalAddChild()">+ Хүүхэд нэмэх</button>
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 4px 0;">
+
+      <button class="action-btn btn-delete" onclick="modalDeleteNode()">Устгах</button>
     </div>
   </div>
 
-  <!-- Мод зурах талбар -->
-  <div id="tree-container"></div>
-</div>
+  <div class="modal-overlay" id="authModal" onclick="closeModalOnOverlay(event)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span id="authModalTitle">Нэвтрэх</span>
+        <span class="modal-close" onclick="closeModal('authModal')">&times;</span>
+      </div>
 
-<script>
-  // Supabase холболтын мэдээлэл
-  const SUPABASE_URL = "https://mxo-app.supabase.co"; 
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14by1hcHAiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNzQ1Nzk5NiwiZXhwIjoyMDUzMDMzOTk2fQ.eyJ1c2VyIjpudWxsfQ";
+      <div class="modal-section">
+        <label>Имэйл хаяг</label>
+        <input type="email" id="authEmail" placeholder="name@example.com">
+      </div>
 
-  let supabaseClient = null;
-  let currentUser = null;
+      <div class="modal-section">
+        <label>Нууц үг</label>
+        <input type="password" id="authPassword" placeholder="******">
+      </div>
 
-  let treeData = {
-    name: "Өвөг дээдэс",
-    year: "1940",
-    children: [
-      { 
-        name: "Аав", 
-        year: "1965",
-        children: [
-          { name: "Би", year: "1990" },
-          { name: "Дүү", year: "1995" }
-        ]
-      },
-      { name: "Ах", year: "1968" }
-    ]
-  };
+      <div class="modal-row" style="margin-top: 10px;">
+        <button class="action-btn btn-rename" style="flex:1;" onclick="handleLogin()">Нэвтрэх</button>
+        <button class="action-btn btn-add" style="flex:1;" onclick="handleSignUp()">Бүртгүүлэх</button>
+      </div>
+    </div>
+  </div>
 
-  window.addEventListener('DOMContentLoaded', async () => {
-    try {
-      if (window.supabase) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        await checkUser();
+  <script>
+    const SUPABASE_URL = "https://mxo-app.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14by1hcHAiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNzQ1Nzk5NiwiZXhwIjoyMDUzMDMzOTk2fQ.eyJ1c2VyIjpudWxsfQ";
+    const _supabase = (SUPABASE_URL && !SUPABASE_URL.includes("YOUR_SUPABASE_URL")) ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+    let currentUser = null;
+
+    async function checkUserSession() {
+      if (!_supabase) return;
+      const { data: { session } } = await _supabase.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        updateAuthUI();
+        loadTreeFromCloud();
       }
-    } catch(e) {
-      console.log("Supabase init error:", e);
     }
-    renderTree(treeData);
-  });
 
-  async function checkUser() {
-    if (!supabaseClient) return;
-    try {
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      if (user) {
-        currentUser = user;
-        document.getElementById('user-status').innerText = user.email;
-        document.getElementById('auth-btn').innerText = "🚪 Гарах";
+    if (_supabase) {
+      _supabase.auth.onAuthStateChange((event, session) => {
+        currentUser = session ? session.user : null;
+        updateAuthUI();
+      });
+    }
+
+    function updateAuthUI() {
+      const statusText = document.getElementById("user-status-text");
+      const authBtn = document.getElementById("auth-btn");
+      const logoutBtn = document.getElementById("logout-btn");
+
+      if (currentUser) {
+        statusText.innerText = `Нэвтэрсэн: ${currentUser.email}`;
+        authBtn.style.display = "none";
+        logoutBtn.style.display = "inline-block";
+      } else {
+        statusText.innerText = "Зочин хэрэглэгч";
+        authBtn.style.display = "inline-block";
+        logoutBtn.style.display = "none";
       }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function handleAuth() {
-    if (!supabaseClient) {
-      alert("Supabase холболтод алдаа гарлаа. Түлхүүрээ шалгана уу!");
-      return;
     }
 
-    if (currentUser) {
-      await supabaseClient.auth.signOut();
-      window.location.reload();
-    } else {
-      const email = prompt("Нэвтрэх/Бүртгүүлэх и-мэйл хаягаа оруулна уу:");
-      if (email && email.trim() !== "") {
-        try {
-          const { error } = await supabaseClient.auth.signInWithOtp({ 
-            email: email.trim(),
-            options: { emailRedirectTo: window.location.href }
-          });
-          
-          if (error) alert("Алдаа гарлаа: " + error.message);
-          else alert("Таны " + email + " и-мэйл рүү нэвтрэх холбоос явууллаа. И-мэйлээ шалгаарай!");
-        } catch (err) {
-          alert("Холболтын алдаа: " + err.message);
+    function openAuthModal() {
+      document.getElementById("authModal").classList.add("active");
+    }
+
+    async function handleLogin() {
+      if (!_supabase) {
+        alert("Supabase холбогдоогүй байна. API түлхүүрээ оруулна уу.");
+        return;
+      }
+      const email = document.getElementById("authEmail").value.trim();
+      const password = document.getElementById("authPassword").value.trim();
+
+      if (!email || !password) {
+        alert("Имэйл болон нууц үгээ бүрэн оруулна уу!");
+        return;
+      }
+
+      const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        alert("Нэвтрэхэд алдаа гарлаа: " + error.message);
+      } else {
+        closeModal('authModal');
+        loadTreeFromCloud();
+      }
+    }
+
+    async function handleSignUp() {
+      if (!_supabase) {
+        alert("Supabase холбогдоогүй байна.");
+        return;
+      }
+      const email = document.getElementById("authEmail").value.trim();
+      const password = document.getElementById("authPassword").value.trim();
+
+      if (!email || !password) {
+        alert("Имэйл болон нууц үгээ оруулна уу!");
+        return;
+      }
+
+      const { data, error } = await _supabase.auth.signUp({ email, password });
+      if (error) {
+        alert("Бүртгүүлэхэд алдаа гарлаа: " + error.message);
+      } else {
+        alert("Бүртгэл амжилттай!");
+        closeModal('authModal');
+      }
+    }
+
+    async function handleLogout() {
+      if (_supabase) await _supabase.auth.signOut();
+      alert("Системээс гарлаа.");
+    }
+
+    async function saveTreeToCloud() {
+      if (!currentUser || !_supabase) {
+        alert("Ургийн модоо хадгалахын тулд эхлээд нэвтэрнэ үү!");
+        openAuthModal();
+        return;
+      }
+
+      const btn = document.getElementById("btnSaveCloud");
+      btn.innerText = "Хадгалж байна...";
+      btn.disabled = true;
+
+      const { data: existingData } = await _supabase
+        .from('family_trees')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      let error = null;
+
+      if (existingData) {
+        const res = await _supabase
+          .from('family_trees')
+          .update({ tree_data: familyData, updated_at: new Date() })
+          .eq('user_id', currentUser.id);
+        error = res.error;
+      } else {
+        const res = await _supabase
+          .from('family_trees')
+          .insert([{ user_id: currentUser.id, tree_data: familyData }]);
+        error = res.error;
+      }
+
+      btn.innerText = "☁️ Cloud-д хадгалах";
+      btn.disabled = false;
+
+      if (error) {
+        alert("Алдаа гарлаа: " + error.message);
+      } else {
+        alert("Амжилттай хадгалагдлаа!");
+      }
+    }
+
+    async function loadTreeFromCloud() {
+      if (!currentUser || !_supabase) return;
+
+      const { data } = await _supabase
+        .from('family_trees')
+        .select('tree_data')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      if (data && data.tree_data) {
+        familyData = data.tree_data;
+        selectedNode = null;
+        updateTree();
+      }
+    }
+
+    const cyrToMongolMap = {
+      'а': 'ᠠ', 'б': 'ᠪ', 'в': 'ᠸ', 'г': 'ᠭ', 'д': 'ᠳ', 'е': 'ᠶᠡ', 'ё': 'ᠶᠣ',
+      'ж': 'ᠵ', 'з': 'ᠵ', 'и': 'ᠢ', 'й': 'ᠢ', 'к': 'ᠺ', 'л': 'ᠯ', 'м': 'ᠮ',
+      'н': 'ᠨ', 'о': 'ᠣ', 'ө': 'ᠥ', 'п': 'ᠫ', 'р': 'ᠷ', 'с': 'ᠰ', 'т': 'ᠲ',
+      'у': 'ᠤ', 'ү': 'ᠦ', 'ф': 'ᠹ', 'х': 'ᠬ', 'ц': 'ᠴ', 'ч': 'ᠴ', 'ш': 'ᠱ',
+      'ъ': '', 'ы': 'ᠢ', 'ь': 'ᠢ', 'э': 'ᠡ', 'ю': 'ᠶᠤ', 'я': 'ᠶᠠ'
+    };
+
+    function convertToMongolianScript(text) {
+      if (!text) return "";
+      return text.toLowerCase().split('').map(char => cyrToMongolMap[char] || char).join('');
+    }
+
+    let familyData = {
+      id: "node_1",
+      name: "Өвөг дээдэс",
+      year: "1940",
+      color: "#f1c40f",
+      children: [
+        {
+          id: "node_2",
+          name: "Өвөг дээдэс\nАав",
+          year: "1965",
+          children: [
+            { id: "node_3", name: "Аав\nБи", year: "1990" }
+          ]
         }
+      ]
+    };
+
+    let selectedNode = null;
+    let idCounter = 10;
+    let globalFontSize = 10;
+    let isBold = false;
+    let isItalic = false;
+
+    const containerWidth = 1000;
+    const containerHeight = 700;
+
+    const svg = d3.select("#chart")
+      .append("svg")
+      .attr("id", "svg-chart")
+      .attr("width", containerWidth)
+      .attr("height", containerHeight);
+
+    const gMain = svg.append("g").attr("id", "main-group");
+
+    const zoomBehavior = d3.zoom()
+      .scaleExtent([0.2, 3])
+      .on("zoom", (event) => {
+        gMain.attr("transform", event.transform);
+      });
+
+    svg.call(zoomBehavior);
+
+    function resetZoom() {
+      svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
+    }
+
+    function openModal(d) {
+      selectedNode = d;
+      updateTree();
+
+      const modal = document.getElementById("nodeModal");
+      const title = document.getElementById("modalTitle");
+      const nameInp = document.getElementById("modalNameInput");
+      const yearInp = document.getElementById("modalYearInput");
+
+      const ownName = getOnlyOwnName(d.data.name);
+      title.innerText = `${ownName} ${d.data.year ? '(' + d.data.year + ')' : ''}`;
+      nameInp.value = ownName;
+      yearInp.value = d.data.year || "";
+
+      document.getElementById("modalChildNameInput").value = "";
+      document.getElementById("modalChildYearInput").value = "";
+
+      modal.classList.add("active");
+    }
+
+    function closeModal(modalId = "nodeModal") {
+      document.getElementById(modalId).classList.remove("active");
+    }
+
+    function closeModalOnOverlay(e) {
+      if (e.target.classList.contains("modal-overlay")) {
+        e.target.classList.remove("active");
       }
     }
-  }
 
-  function renderTree(data) {
-    const container = document.getElementById("tree-container");
-    container.innerHTML = "";
-    const width = container.clientWidth || 800;
-    const height = 600;
+    function modalSaveRename() {
+      const nameVal = document.getElementById("modalNameInput").value.trim();
+      const yearVal = document.getElementById("modalYearInput").value.trim();
 
-    const layoutType = document.getElementById("layout-select").value;
-    const fontFamily = document.getElementById("font-family") ? document.getElementById("font-family").value : 'Roboto';
-
-    const svg = d3.select("#tree-container").append("svg")
-      .attr("width", width)
-      .attr("height", height);
-
-    const root = d3.hierarchy(data);
-
-    if (layoutType === 'radial') {
-      // ТОЙРОГ ЗАГВАР (RADIAL LAYOUT)
-      const radius = Math.min(width, height) / 2 - 80;
-      const treeLayout = d3.tree().size([2 * Math.PI, radius]);
-      treeLayout(root);
-
-      const g = svg.append("g")
-        .attr("transform", `translate(${width / 2},${height / 2})`);
-
-      g.selectAll('.link')
-        .data(root.links())
-        .enter()
-        .append('path')
-        .attr('class', 'link')
-        .attr('d', d3.linkRadial()
-          .angle(d => d.x)
-          .radius(d => d.y));
-
-      const node = g.selectAll('.node')
-        .data(root.descendants())
-        .enter()
-        .append('g')
-        .attr('class', 'node')
-        .attr('transform', d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`);
-
-      node.append('rect')
-        .attr('width', 110)
-        .attr('height', 40)
-        .attr('x', -55)
-        .attr('y', -20);
-
-      node.append('text')
-        .attr('transform', d => d.x < Math.PI ? '' : 'rotate(180)')
-        .text(d => `${d.data.name} (${d.data.year || ''})`)
-        .style("font-family", fontFamily);
-
-    } else {
-      // БОСОО ЗАГВАРУУД (Top-Down & Bottom-Up)
-      const treeLayout = d3.tree().size([width - 120, height - 120]);
-      treeLayout(root);
-
-      const g = svg.append("g")
-        .attr("transform", "translate(60, 60)");
-
-      if (layoutType === 'bottom-up') {
-        root.each(d => d.y = (height - 120) - d.y);
+      if (!nameVal) {
+        alert("Нэрийг оруулна уу!");
+        return;
       }
 
-      g.selectAll('.link')
-        .data(root.links())
-        .enter()
-        .append('path')
-        .attr('class', 'link')
-        .attr('d', d3.linkVertical()
-          .x(d => d.x)
-          .y(d => d.y));
+      if (selectedNode.depth === 0) {
+        selectedNode.data.name = nameVal;
+      } else {
+        const parentOwnName = getOnlyOwnName(selectedNode.parent.data.name);
+        selectedNode.data.name = `${parentOwnName}\n${nameVal}`;
+      }
 
-      const node = g.selectAll('.node')
-        .data(root.descendants())
-        .enter()
-        .append('g')
-        .attr('class', 'node')
-        .attr('transform', d => `translate(${d.x},${d.y})`);
-
-      node.append('rect')
-        .attr('width', 130)
-        .attr('height', 45)
-        .attr('x', -65)
-        .attr('y', -22);
-
-      node.append('text')
-        .text(d => `${d.data.name} (${d.data.year || ''})`)
-        .style("font-family", fontFamily);
+      selectedNode.data.year = yearVal;
+      updateTree();
+      closeModal('nodeModal');
     }
-  }
 
-  function updateTree() {
-    renderTree(treeData);
-  }
+    function modalAddChild() {
+      const childName = document.getElementById("modalChildNameInput").value.trim();
+      const childYear = document.getElementById("modalChildYearInput").value.trim();
 
-  function addChild() {
-    const name = document.getElementById('node-name').value;
-    const year = document.getElementById('node-year').value;
-    if(!name) return alert("Нэрээ оруулна уу!");
-    
-    if(!treeData.children) treeData.children = [];
-    treeData.children.push({ name, year });
-    renderTree(treeData);
-    document.getElementById('node-name').value = '';
-    document.getElementById('node-year').value = '';
-  }
+      if (!childName) {
+        alert("Хүүхдийн нэрийг оруулна уу!");
+        return;
+      }
 
-  function editNode() { alert("Засах үйлдэл хийгдэнэ."); }
-  function deleteNode() { alert("Устгах үйлдэл хийгдэнэ."); }
-  function saveToCloud() { alert("Cloud хадгалах функц."); }
-  function exportPDF() { alert("PDF экспортлох функц."); }
-</script>
+      const parentOwnName = getOnlyOwnName(selectedNode.data.name);
+      const fullName = `${parentOwnName}\n${childName}`;
 
+      if (!selectedNode.data.children) {
+        selectedNode.data.children = [];
+      }
+
+      selectedNode.data.children.push({
+        id: "node_" + (++idCounter),
+        name: fullName,
+        year: childYear,
+        color: selectedNode.data.color || null
+      });
+
+      updateTree();
+      closeModal('nodeModal');
+    }
+
+    function modalDeleteNode() {
+      deleteNode();
+      closeModal('nodeModal');
+    }
+
+    function toggleBold() {
+      isBold = !isBold;
+      document.getElementById("btnBold").classList.toggle("active", isBold);
+      updateTree();
+    }
+
+    function toggleItalic() {
+      isItalic = !isItalic;
+      document.getElementById("btnItalic").classList.toggle("active", isItalic);
+      updateTree();
+    }
+
+    function toggleScriptUI() {
+      const scriptType = document.getElementById("scriptType").value;
+      const cyrTools = document.getElementById("cyrillic-tools");
+      const mnTools = document.getElementById("mongolian-tools");
+      
+      if (scriptType === "mongolian") {
+        cyrTools.style.display = "none";
+        mnTools.style.display = "flex";
+      } else {
+        cyrTools.style.display = "flex";
+        mnTools.style.display = "none";
+      }
+      updateTree();
+    }
+
+    function changeGlobalFontSize(size) {
+      globalFontSize = parseInt(size);
+      document.getElementById("globalFontSizeLabel").innerText = size + "px";
+      updateTree();
+    }
+
+    function changeNodeFontSize(size) {
+      if (!selectedNode) return;
+      selectedNode.data.fontSize = parseInt(size);
+      document.getElementById("nodeFontSizeLabel").innerText = size + "px";
+      updateTree();
+    }
+
+    function changeBranchColor(colorValue) {
+      if (!selectedNode) return;
+      selectedNode.descendants().forEach(d => {
+        d.data.color = colorValue;
+      });
+      updateTree();
+    }
+
+    function generateHTMLText(d) {
+      const scriptType = document.getElementById("scriptType").value;
+      const fontFamily = document.getElementById("fontFamilySelect").value;
+      const mnFont = document.getElementById("mnFontSelect").value;
+      const textColor = document.getElementById("textColorPicker").value;
+
+      let rawName = d.data.name;
+      const yearStr = d.data.year ? `(${d.data.year})` : "";
+      const nodeFontSz = d.data.fontSize || globalFontSize;
+      
+      if (scriptType === "mongolian") {
+        rawName = convertToMongolianScript(rawName);
+        const lines = rawName.split('\n');
+        let colsHtml = lines.map(line => `<div class="mn-column">${line}</div>`).join('');
+        if (yearStr) {
+          colsHtml += `<div class="mn-column year-val" style="font-size: ${Math.max(6, nodeFontSz - 2)}px;">${yearStr}</div>`;
+        }
+        return `<div class="mongolian-box" style="font-family: ${mnFont}; font-size: ${nodeFontSz}px; color: ${textColor};">${colsHtml}</div>`;
+      } else {
+        const lines = rawName.split('\n');
+        let linesHtml = lines.map(line => `<div>${line}</div>`).join('');
+        if (yearStr) {
+          linesHtml += `<div class="year-val" style="font-size: ${Math.max(6, nodeFontSz - 2)}px;">${yearStr}</div>`;
+        }
+        const fontWeight = isBold ? "bold" : "normal";
+        const fontStyle = isItalic ? "italic" : "normal";
+
+        return `<div class="cyrillic-box" style="font-family: ${fontFamily}; font-size: ${nodeFontSz}px; font-weight: ${fontWeight}; font-style: ${fontStyle}; color: ${textColor};">${linesHtml}</div>`;
+      }
+    }
+
+    function updateTree() {
+      gMain.selectAll("*").remove();
+
+      const layoutType = document.getElementById("layoutType").value;
+
+      const rootHierarchy = d3.hierarchy(familyData);
+      if (!selectedNode) {
+        selectedNode = rootHierarchy;
+      } else {
+        const found = rootHierarchy.descendants().find(d => d.data.id === selectedNode.data.id);
+        selectedNode = found ? found : rootHierarchy;
+      }
+
+      const displayName = selectedNode.data.name.replace('\n', ' ');
+      const displayYear = selectedNode.data.year ? `(${selectedNode.data.year})` : "";
+      document.getElementById("selected-info").innerText = `Сонгосон: ${displayName} ${displayYear}`;
+
+      const currentNodeFontSize = selectedNode.data.fontSize || globalFontSize;
+      document.getElementById("nodeFontSizeSlider").value = currentNodeFontSize;
+      document.getElementById("nodeFontSizeLabel").innerText = currentNodeFontSize + "px";
+
+      if (layoutType === "full-circle") {
+        const radius = containerHeight / 2;
+        const g = gMain.append("g").attr("transform", `translate(${containerWidth / 2}, ${radius})`);
+
+        const partition = d3.partition()
+          .size([2 * Math.PI, rootHierarchy.height + 1]);
+
+        rootHierarchy.sum(d => d.children && d.children.length > 0 ? 0 : 1)
+                     .sort((a, b) => b.value - a.value);
+
+        const root = partition(rootHierarchy);
+
+        const arc = d3.arc()
+          .startAngle(d => d.x0)
+          .endAngle(d => d.x1)
+          .padAngle(0.005)
+          .padRadius(radius / 2)
+          .innerRadius(d => d.y0 * (radius / (root.height + 1)))
+          .outerRadius(d => d.y1 * (radius / (root.height + 1)) - 1);
+
+        g.append("g")
+          .selectAll("path")
+          .data(root.descendants())
+          .join("path")
+          .attr("fill", d => d.data.color ? d.data.color : (d.depth === 0 ? "#f1c40f" : (d.depth % 2 === 0 ? "#ecf0f1" : "#ffffff")))
+          .attr("class", d => d.data.id === selectedNode.data.id ? "selected" : "")
+          .attr("d", arc)
+          .on("click", (event, d) => {
+            selectedNode = d;
+            const nameParts = d.data.name.split('\n');
+            document.getElementById("nameInput").value = nameParts.length > 1 ? nameParts[1] : nameParts[0];
+            document.getElementById("yearInput").value = d.data.year || "";
+            if (d.data.color) document.getElementById("bgColorPicker").value = d.data.color;
+            updateTree();
+          })
+          .on("dblclick", (event, d) => {
+            event.stopPropagation();
+            openModal(d);
+          });
+
+        const boxSize = 140;
+        const scriptType = document.getElementById("scriptType").value;
+
+        g.append("g")
+          .selectAll("foreignObject")
+          .data(root.descendants())
+          .join("foreignObject")
+          .attr("width", boxSize)
+          .attr("height", boxSize)
+          .attr("transform", d => {
+            if (d.depth === 0) return `translate(-${boxSize/2}, -${boxSize/2})`;
+            const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+            const y = (d.y0 + d.y1) / 2 * (radius / (root.height + 1));
+
+            if (scriptType === "mongolian") {
+              const autoFlip = (x > 90 && x < 270) ? 180 : 0;
+              return `rotate(${x}) translate(0, -${y}) rotate(${autoFlip}) translate(-${boxSize/2}, -${boxSize/2})`;
+            } else {
+              const rotateAngle = x < 180 ? x - 90 : x + 90;
+              return `rotate(${rotateAngle}) translate(${x < 180 ? y : -y},0) translate(-${boxSize/2}, -${boxSize/2})`;
+            }
+          })
+          .append("xhtml:div")
+          .attr("class", "node-label")
+          .html(d => generateHTMLText(d));
+
+      } else if (layoutType === "vertical-tree") {
+        const cardW = 120;
+        const cardH = 65;
+        const minGap = 30;
+
+        const leafCount = rootHierarchy.leaves().length;
+        const dynamicWidth = Math.max(containerWidth, leafCount * (cardW + minGap));
+
+        const treeLayout = d3.tree().size([dynamicWidth - 140, containerHeight - 200]);
+        const root = treeLayout(rootHierarchy);
+
+        const g = gMain.append("g").attr("transform", `translate(${(containerWidth - dynamicWidth) / 2 + 70}, 80)`);
+
+        g.selectAll(".link-line")
+          .data(root.links())
+          .join("path")
+          .attr("class", "link-line")
+          .attr("d", d3.linkVertical()
+            .x(d => d.x)
+            .y(d => (containerHeight - 200) - d.y)
+          );
+
+        const node = g.selectAll(".node")
+          .data(root.descendants())
+          .join("g")
+          .attr("transform", d => `translate(${d.x},${(containerHeight - 200) - d.y})`);
+
+        node.append("rect")
+          .attr("x", -cardW / 2)
+          .attr("y", -cardH / 2)
+          .attr("width", cardW)
+          .attr("height", cardH)
+          .attr("rx", 8)
+          .attr("ry", 8)
+          .attr("fill", d => d.data.color ? d.data.color : (d.depth === 0 ? "#f1c40f" : "#ffffff"))
+          .attr("class", d => d.data.id === selectedNode.data.id ? "selected" : "")
+          .on("click", (event, d) => {
+            selectedNode = d;
+            const nameParts = d.data.name.split('\n');
+            document.getElementById("nameInput").value = nameParts.length > 1 ? nameParts[1] : nameParts[0];
+            document.getElementById("yearInput").value = d.data.year || "";
+            if (d.data.color) document.getElementById("bgColorPicker").value = d.data.color;
+            updateTree();
+          })
+          .on("dblclick", (event, d) => {
+            event.stopPropagation();
+            openModal(d);
+          });
+
+        node.append("foreignObject")
+          .attr("x", -cardW / 2)
+          .attr("y", -cardH / 2)
+          .attr("width", cardW)
+          .attr("height", cardH)
+          .append("xhtml:div")
+          .attr("class", "node-label")
+          .html(d => generateHTMLText(d));
+
+      } else if (layoutType === "horizontal-tree") {
+        const treeLayout = d3.tree().size([containerHeight - 120, containerWidth - 250]);
+        const root = treeLayout(rootHierarchy);
+
+        const g = gMain.append("g").attr("transform", "translate(100, 60)");
+
+        g.selectAll(".link-line")
+          .data(root.links())
+          .join("path")
+          .attr("class", "link-line")
+          .attr("d", d3.linkHorizontal()
+            .x(d => d.y)
+            .y(d => d.x)
+          );
+
+        const cardW = 120;
+        const cardH = 60;
+
+        const node = g.selectAll(".node")
+          .data(root.descendants())
+          .join("g")
+          .attr("transform", d => `translate(${d.y},${d.x})`);
+
+        node.append("rect")
+          .attr("x", -cardW / 2)
+          .attr("y", -cardH / 2)
+          .attr("width", cardW)
+          .attr("height", cardH)
+          .attr("rx", 8)
+          .attr("ry", 8)
+          .attr("fill", d => d.data.color ? d.data.color : (d.depth === 0 ? "#f1c40f" : "#ffffff"))
+          .attr("class", d => d.data.id === selectedNode.data.id ? "selected" : "")
+          .on("click", (event, d) => {
+            selectedNode = d;
+            const nameParts = d.data.name.split('\n');
+            document.getElementById("nameInput").value = nameParts.length > 1 ? nameParts[1] : nameParts[0];
+            document.getElementById("yearInput").value = d.data.year || "";
+            if (d.data.color) document.getElementById("bgColorPicker").value = d.data.color;
+            updateTree();
+          })
+          .on("dblclick", (event, d) => {
+            event.stopPropagation();
+            openModal(d);
+          });
+
+        node.append("foreignObject")
+          .attr("x", -cardW / 2)
+          .attr("y", -cardH / 2)
+          .attr("width", cardW)
+          .attr("height", cardH)
+          .append("xhtml:div")
+          .attr("class", "node-label")
+          .html(d => generateHTMLText(d));
+      }
+    }
+
+    function getOnlyOwnName(fullName) {
+      const parts = fullName.split('\n');
+      return parts.length > 1 ? parts[1] : parts[0];
+    }
+
+    function addChild() {
+      const nameInput = document.getElementById("nameInput");
+      const yearInput = document.getElementById("yearInput");
+
+      const childName = nameInput.value.trim();
+      const year = yearInput.value.trim();
+
+      if (!childName) {
+        alert("Хүүхдийн нэрийг оруулна уу!");
+        return;
+      }
+
+      const parentOwnName = getOnlyOwnName(selectedNode.data.name);
+      const fullName = `${parentOwnName}\n${childName}`;
+
+      if (!selectedNode.data.children) {
+        selectedNode.data.children = [];
+      }
+
+      selectedNode.data.children.push({
+        id: "node_" + (++idCounter),
+        name: fullName,
+        year: year,
+        color: selectedNode.data.color || null
+      });
+
+      nameInput.value = "";
+      yearInput.value = "";
+      updateTree();
+    }
+
+    function renameNode() {
+      const nameInput = document.getElementById("nameInput");
+      const yearInput = document.getElementById("yearInput");
+
+      const newName = nameInput.value.trim();
+      const newYear = yearInput.value.trim();
+
+      if (!newName) {
+        alert("Нэрийг оруулна уу!");
+        return;
+      }
+
+      if (selectedNode.depth === 0) {
+        selectedNode.data.name = newName;
+      } else {
+        const parentOwnName = getOnlyOwnName(selectedNode.parent.data.name);
+        selectedNode.data.name = `${parentOwnName}\n${newName}`;
+      }
+
+      selectedNode.data.year = newYear;
+
+      nameInput.value = "";
+      yearInput.value = "";
+      updateTree();
+    }
+
+    function deleteNode() {
+      if (selectedNode.depth === 0) {
+        alert("Төв эх өвөг дээдсийг устгах боломжгүй!");
+        return;
+      }
+
+      if (confirm(`"${selectedNode.data.name.replace('\n', ' ')}" устгах уу?`)) {
+        const parent = selectedNode.parent;
+        parent.data.children = parent.data.children.filter(child => child.id !== selectedNode.data.id);
+        selectedNode = parent;
+        updateTree();
+      }
+    }
+
+    async function exportPDF() {
+      const btn = document.getElementById("btnExport");
+      btn.innerText = "Боловсруулж байна...";
+      btn.disabled = true;
+
+      resetZoom();
+
+      const node = document.getElementById("chart-container");
+      const zoomBtn = document.getElementById("zoomControls");
+      if (zoomBtn) zoomBtn.style.display = "none";
+
+      const selectedPath = document.querySelector(".selected");
+      if (selectedPath) selectedPath.classList.remove("selected");
+      node.classList.add("no-shadow");
+
+      try {
+        const scaleFactor = 4;
+        const widthPx = node.offsetWidth;
+        const heightPx = node.offsetHeight;
+
+        const dataUrl = await domtoimage.toPng(node, {
+          quality: 1.0,
+          bgcolor: '#ffffff',
+          width: widthPx * scaleFactor,
+          height: heightPx * scaleFactor,
+          style: {
+            transform: `scale(${scaleFactor})`,
+            transformOrigin: 'top left',
+            width: `${widthPx}px`,
+            height: `${heightPx}px`
+          }
+        });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('l', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+
+        const imgWidth = pdfWidth - 20;
+        const imgHeight = (heightPx * imgWidth) / widthPx;
+
+        pdf.addImage(dataUrl, 'PNG', 10, (pdfHeight - imgHeight) / 2, imgWidth, imgHeight);
+        pdf.save("Ургийн_мод.pdf");
+
+      } catch (err) {
+        alert("PDF татахад алдаа гарлаа: " + err.message);
+      } finally {
+        if (zoomBtn) zoomBtn.style.display = "flex";
+        node.classList.remove("no-shadow");
+        if (selectedPath) selectedPath.classList.add("selected");
+        btn.innerText = "📄 PDF Татах";
+        btn.disabled = false;
+      }
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeModal('nodeModal');
+        closeModal('authModal');
+      }
+    });
+
+    checkUserSession();
+    updateTree();
+  </script>
 </body>
 </html>
