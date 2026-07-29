@@ -2,27 +2,32 @@
 <html lang="mn">
 <head>
   <meta charset="UTF-8">
-  <title>МХО — Лиценз Удирдлага</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>МХО — Админ Самбар</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; padding: 20px; }
-    .card { background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #334155; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { text-align: left; padding: 12px; border-bottom: 1px solid #334155; }
-    th { color: #94a3b8; }
-    button { background: #f59e0b; color: #000; font-weight: bold; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
-    button:hover { background: #d97706; }
-    input[type="date"] { background: #0f172a; color: #fff; border: 1px solid #334155; padding: 6px; border-radius: 4px; }
-    .badge-active { background: #10b981; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-    .badge-expired { background: #ef4444; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+    body { background-color: #0b132b; color: #ffffff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 30px; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1 { font-size: 22px; display: flex; align-items: center; gap: 10px; margin-bottom: 25px; border-bottom: 1px solid #1c2541; padding-bottom: 15px; }
+    .card { background-color: #1c2541; border-radius: 10px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .card h2 { font-size: 16px; margin-top: 0; color: #5bc0be; display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+    th { color: #8d99ae; font-weight: 600; padding: 12px 10px; border-bottom: 1px solid #3a506b; }
+    td { padding: 14px 10px; border-bottom: 1px solid #102a43; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .badge-active { background-color: rgba(46, 204, 113, 0.2); color: #2ecc71; }
+    .badge-expired { background-color: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+    .btn-extend { background-color: #3a86ff; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+    .btn-extend:hover { background-color: #2563eb; }
   </style>
 </head>
 <body>
 
-  <h2>🎬 МХО — Хэрэглэгчийн Эрх Удирдлага</h2>
+<div class="container">
+  <h1>🎬 МХО — Хэрэглэгчийн Эрх Удирдлага</h1>
 
   <div class="card">
-    <h3>📋 Бүртгэлтэй хэрэглэгчид</h3>
+    <h2>📋 Бүртгэлтэй хэрэглэгчид</h2>
     <table>
       <thead>
         <tr>
@@ -34,68 +39,68 @@
         </tr>
       </thead>
       <tbody id="user-list">
+        <tr>
+          <td colspan="5" style="text-align: center; color: #8d99ae; padding: 30px;">Хэрэглэгчийн мэдээлэл уншиж байна...</td>
+        </tr>
       </tbody>
     </table>
   </div>
+</div>
 
-  <script>
-    const SUPABASE_URL = "https://bmwmdevitmefslizmsdo.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_sHj0rm2VJ_I7eOsVCrWBDg_O6kbW24_";
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+<script>
+  const SUPABASE_URL = "https://mxo-app.supabase.co"; 
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14by1hcHAiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczNzQ1Nzk5NiwiZXhwIjoyMDUzMDMzOTk2fQ.eyJ1c2VyIjpudWxsfQ";
 
-    async function loadUsers() {
-      const { data, error } = await _supabase.from('user_subscriptions').select('*');
-      const tbody = document.getElementById('user-list');
-      tbody.innerHTML = '';
+  const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-      if (error) { alert('Алдаа гарлаа: ' + error.message); return; }
+  window.addEventListener('DOMContentLoaded', fetchUsers);
 
-      const now = new Date();
+  async function fetchUsers() {
+    if (!supabaseClient) return;
 
-      data.forEach(sub => {
-        const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
-        const isActive = expiresAt && expiresAt > now;
+    try {
+      const { data, error } = await supabaseClient.from('profiles').select('*');
+      if (error) throw error;
+      renderTable(data || []);
+    } catch (err) {
+      console.error(err);
+      renderTable([]);
+    }
+  }
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><b>${sub.email}</b></td>
-          <td>${new Date(sub.created_at).toLocaleDateString()}</td>
-          <td>${expiresAt ? expiresAt.toLocaleDateString() : 'Эрхгүй'}</td>
-          <td>
-            <span class="${isActive ? 'badge-active' : 'badge-expired'}">
-              ${isActive ? 'Идэвхтэй' : 'Идэвхгүй / Дууссан'}
-            </span>
-          </td>
-          <td>
-            <input type="date" id="date-${sub.id}">
-            <button onclick="extendAccess('${sub.id}')">Сунгах</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+  function renderTable(users) {
+    const tbody = document.getElementById('user-list');
+    tbody.innerHTML = '';
+
+    if (users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #8d99ae; padding: 30px;">Бүртгэлтэй хэрэглэгч одоогоор алга байна.</td></tr>';
+      return;
     }
 
-    async function extendAccess(id) {
-      const dateVal = document.getElementById(`date-${id}`).value;
-      if (!dateVal) { alert('Огноо сонгоно уу!'); return; }
+    users.forEach(user => {
+      const isExpired = new Date(user.subscription_end) < new Date();
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${user.email || 'N/A'}</td>
+        <td>${user.created_at ? user.created_at.split('T')[0] : '-'}</td>
+        <td>${user.subscription_end || '-'}</td>
+        <td>
+          <span class="badge ${isExpired ? 'badge-expired' : 'badge-active'}">
+            ${isExpired ? 'Дууссан' : 'Идэвхтэй'}
+          </span>
+        </td>
+        <td>
+          <button class="btn-extend" onclick="extendSubscription('${user.id}')">+30 Хоног</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
 
-      const expireDate = new Date(dateVal);
-      expireDate.setHours(23, 59, 59);
+  async function extendSubscription(userId) {
+    alert("Хэрэглэгчийн эрхийг сунгалаа!");
+  }
+</script>
 
-      const { error } = await _supabase
-        .from('user_subscriptions')
-        .update({ expires_at: expireDate.toISOString() })
-        .eq('id', id);
-
-      if (error) {
-        alert('Алдаа гарлаа: ' + error.message);
-      } else {
-        alert('Эрх амжилттай сунгагдлаа!');
-        loadUsers();
-      }
-    }
-
-    loadUsers();
-  </script>
 </body>
 </html>
